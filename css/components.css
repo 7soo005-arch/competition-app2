@@ -520,55 +520,84 @@
 @media (max-width: 768px) {
     .match-teams-selector {
         grid-template-columns: 1fr;
-        padding: 12px;
-        gap: 12px;
+        padding: 10px;
+        gap: 8px;
     }
     
     .versus-divider {
-        padding: 6px 0;
-        font-size: 1rem;
+        padding: 4px 0;
+        font-size: 0.95rem;
     }
 
     .scoring-grid {
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: 12px;
     }
 
     .radio-tiles {
         grid-template-columns: 1fr;
-        gap: 8px;
+        gap: 6px;
     }
 
     .tile-content {
-        padding: 14px;
-        min-height: 48px;
+        padding: 10px 8px;
+        min-height: 42px;
+        font-size: 0.85rem;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
     .form-control {
-        padding: 12px 14px;
-        font-size: 1rem; /* Prevents auto-zoom on iOS Safari */
-        min-height: 44px;
+        padding: 8px 10px;
+        font-size: 0.95rem;
+        min-height: 40px;
+    }
+
+    .form-group {
+        gap: 4px;
+    }
+
+    .form-group label {
+        font-size: 0.82rem;
     }
 
     .btn {
-        min-height: 44px;
+        min-height: 40px;
+        padding: 8px 14px;
+        font-size: 0.88rem;
+    }
+
+    .btn-lg {
+        padding: 10px 18px;
+        font-size: 0.98rem;
+        min-height: 42px;
     }
 
     .sub-tabs {
         overflow-x: auto;
         flex-wrap: nowrap;
-        padding-bottom: 6px;
+        padding-bottom: 4px;
+        margin-bottom: 12px;
+        gap: 4px;
         -webkit-overflow-scrolling: touch;
     }
 
     .sub-tab-btn {
         white-space: nowrap;
-        padding: 8px 14px;
-        font-size: 0.85rem;
-        min-height: 44px;
+        padding: 6px 12px;
+        font-size: 0.82rem;
+        min-height: 38px;
+    }
+
+    .data-table th {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+    }
+
+    .data-table td {
+        padding: 8px 10px;
+        font-size: 0.84rem;
     }
 
     .modal-box {
@@ -576,23 +605,39 @@
         max-height: 92vh;
         display: flex;
         flex-direction: column;
+        border-radius: var(--radius-md);
+    }
+
+    .modal-header {
+        padding: 12px 16px;
+    }
+
+    .modal-header h3 {
+        font-size: 1rem;
     }
 
     .modal-body {
         overflow-y: auto;
-        padding: 16px;
+        padding: 14px 16px;
         max-height: 65vh;
     }
 
+    .modal-footer {
+        padding: 10px 16px;
+        gap: 8px;
+    }
+
     .toast-container {
-        left: 12px;
-        right: 12px;
-        bottom: 12px;
-        width: calc(100% - 24px);
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        width: calc(100% - 20px);
     }
 
     .toast {
         min-width: unset;
         width: 100%;
+        padding: 10px 14px;
+        font-size: 0.85rem;
     }
 }
