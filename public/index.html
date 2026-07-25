@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة إدارة المنافسات - الأشبال والفتيان</title>
+    
+    <!-- Google Fonts: Cairo & Tajawal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- SheetJS (XLSX) for Excel Export/Import -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Chart.js for Visual Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- PWA Manifest & Theme Color -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Supabase JS Client & Cloud Env -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/env.js"></script>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/admin.css">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW reg error:', err));
+            });
+        }
+    </script>
+</head>
+<body class="theme-dark">
+
+    <!-- Top Navigation Header -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="brand">
+                <div class="logo-icon">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>منصة المنافسات الكبرى</h1>
+                    <span class="sub-title">برنامج الأشبال والفتيان</span>
+                </div>
+            </div>
+
+            <!-- Main Navigation Tabs -->
+            <nav class="main-nav">
+                <button class="nav-btn active" data-view="scoring">
+                    <i data-lucide="edit-3"></i>
+                    <span>تسجيل النقاط</span>
+                </button>
+                <button class="nav-btn" data-view="leaderboard">
+                    <i data-lucide="award"></i>
+                    <span>جدول الترتيب</span>
+                </button>
+                <button class="nav-btn" data-view="analytics">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>الإحصائيات</span>
+                </button>
+                <button class="nav-btn admin-only" data-view="admin" id="nav-admin-btn" style="display: none;">
+                    <i data-lucide="settings"></i>
+                    <span>لوحة الإدارة</span>
+                </button>
+                <button class="nav-btn" data-view="excel">
+                    <i data-lucide="file-spreadsheet"></i>
+                    <span>تقارير إكسل</span>
+                </button>
+            </nav>
+
+            <!-- User Auth Bar -->
+            <div class="user-auth-bar">
+                <div id="logged-user-info" class="user-info-chip" style="display: none;">
+                    <div class="avatar">
+                        <i data-lucide="user-check"></i>
+                    </div>
+                    <div class="user-details">
+                        <span id="user-display-name" class="name">المشرف</span>
+                        <span id="user-role-badge" class="role-badge">مشرف</span>
+                    </div>
+                    <button id="logout-btn" class="icon-action-btn" title="تسجيل الخروج">
+                        <i data-lucide="log-out"></i>
+                    </button>
+                </div>
+                <button id="login-modal-btn" class="btn btn-primary btn-sm">
+                    <i data-lucide="log-in"></i>
+                    <span>تسجيل الدخول</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Application Container -->
+    <main class="app-body">
+        
+        <!-- Toast Notification Area -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- ==================== VIEW 1: SCORING WORKFLOW (SUPERVISOR) ==================== -->
+        <section id="view-scoring" class="app-view active">
+            <div class="page-header">
+                <div class="title-group">
+                    <h2><i data-lucide="clipboard-list"></i> تسجيل نقاط برنامج المنافسة</h2>
+                    <p class="desc">أدخل نتائج المباريات والتقييمات الفردية مباشرة، وستُنسب كافة الإدخالات إلى حسابك.</p>
+                </div>
+                <div id="active-supervisor-notice" class="supervisor-status-card">
+                    <i data-lucide="shield-check"></i>
+                    <div>
+                        <small>المشرف الحالي</small>
+                        <strong id="active-supervisor-name">غير مسجل - يرجى تسجيل الدخول</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scoring-grid">
+                <!-- Main Form Card -->
+                <div class="glass-card scoring-form-card">
+                    <div class="card-header">
+                        <h3><i data-lucide="plus-circle"></i> رصد نتيجة مباراة جديدة</h3>
+                        <span class="badge badge-accent">تحديث فوري</span>
+                    </div>
+                    
+                    <form id="match-scoring-form" class="form-body">
+                        
+                        <!-- Row 1: Competition & Week -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="scoring-category"><i data-lucide="layers"></i> الفئة العمرية / التربوية *</label>
+                                <select id="scoring-category" class="form-control" required>
+                                    <option value="">-- اختر الفئة --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="scoring-competition"><i data-lucide="target"></i> الفقرة / نوع المنافسة *</label>
+                                <select id="scoring-competition" class="form-control" required>
+                                    <option value="">-- اختر الفقرة --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="scoring-week"><i data-lucide="calendar"></i> الأسبوع / الجولة *</label>
+                                <select id="scoring-week" class="form-control" required>
+                                    <option value="">-- اختر الأسبوع --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="divider"><span>طرفا المباراة والنتيجة</span></div>
+
+                        <!-- Row 2: Teams Selection & Winner -->
+                        <div class="match-teams-selector">
+                            <div class="team-box team-1-box">
+                                <label for="scoring-team1"><i data-lucide="flag"></i> الفريق الأول (الفريق أ) *</label>
+                                <select id="scoring-team1" class="form-control" required>
+                                    <option value="">-- اختر الفريق الأول --</option>
+                                </select>
+                                <div class="score-input-group mt-2">
+                                    <label>الأهداف / النقاط المسجلة:</label>
+                                    <input type="number" id="scoring-team1-goals" class="form-control text-center" min="0" value="0">
+                                </div>
+                            </div>
+
+                            <div class="versus-divider">
+                                <span>ضد</span>
+                                <div class="draw-checkbox-wrapper">
+                                    <input type="checkbox" id="scoring-is-draw" class="custom-checkbox">
+                                    <label for="scoring-is-draw">تعادل</label>
+                                </div>
+                            </div>
+
+                            <div class="team-box team-2-box">
+                                <label for="scoring-team2"><i data-lucide="flag"></i> الفريق الثاني (الفريق ب) *</label>
+                                <select id="scoring-team2" class="form-control" required>
+                                    <option value="">-- اختر الفريق الثاني --</option>
+                                </select>
+                                <div class="score-input-group mt-2">
+                                    <label>الأهداف / النقاط المسجلة:</label>
+                                    <input type="number" id="scoring-team2-goals" class="form-control text-center" min="0" value="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Result Selection -->
+                        <div class="form-group mt-3" id="winner-selection-group">
+                            <label><i data-lucide="award"></i> النتيجة النهائية / الفريق الفائز *</label>
+                            <div class="radio-tiles">
+                                <label class="tile-option">
+                                    <input type="radio" name="match-winner" value="team1" required>
+                                    <span class="tile-content" id="lbl-winner-team1">فوز الفريق الأول</span>
+                                </label>
+                                <label class="tile-option">
+                                    <input type="radio" name="match-winner" value="draw">
+                                    <span class="tile-content">تعادل الطرفين</span>
+                                </label>
+                                <label class="tile-option">
+                                    <input type="radio" name="match-winner" value="team2">
+                                    <span class="tile-content" id="lbl-winner-team2">فوز الفريق الثاني</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="divider"><span>الجوائز والتقييمات الفردية للمباراة</span></div>
+
+                        <!-- Row 3: Best Player, Top Scorer, Best Goalkeeper & Ideal Player -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="scoring-best-player"><i data-lucide="star"></i> أفضل لاعب في المباراة *</label>
+                                <select id="scoring-best-player" class="form-control">
+                                    <option value="">-- اختر أفضل لاعب من لاعبي الفريقين --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="scoring-top-scorer"><i data-lucide="zap"></i> هداف المباراة (الأكثر تسجيلاً)</label>
+                                <select id="scoring-top-scorer" class="form-control">
+                                    <option value="">-- اختر الهداف (اختياري) --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row mt-3">
+                            <div class="form-group">
+                                <label for="scoring-best-gk"><i data-lucide="shield-check"></i> أفضل حارس مرمى</label>
+                                <select id="scoring-best-gk" class="form-control">
+                                    <option value="">-- اختر أفضل حارس (اختياري) --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="scoring-ideal-player"><i data-lucide="heart"></i> اللاعب المثالي (الروح الرياضية)</label>
+                                <select id="scoring-ideal-player" class="form-control">
+                                    <option value="">-- اختر اللاعب المثالي (اختياري) --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Row 4: Penalty / Deduction -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="scoring-penalty-player"><i data-lucide="alert-triangle"></i> خصم / عقوبة للاعب</label>
+                                <select id="scoring-penalty-player" class="form-control">
+                                    <option value="">-- اختر اللاعب المعاقب (إن وجد) --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="scoring-penalty-points">مقدار الخصم (نقاط)</label>
+                                <input type="number" id="scoring-penalty-points" class="form-control" min="1" max="100" placeholder="مثال: 5">
+                            </div>
+                            <div class="form-group">
+                                <label for="scoring-penalty-reason">سبب الخصم / الملاحظات</label>
+                                <input type="text" id="scoring-penalty-reason" class="form-control" placeholder="سبب الخصم...">
+                            </div>
+                        </div>
+
+                        <!-- Form Submission Actions -->
+                        <div class="form-actions mt-4" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <button type="submit" id="btn-save-score" class="btn btn-success btn-lg" style="flex: 1;">
+                                <i data-lucide="check-circle-2"></i>
+                                <span id="btn-save-score-text">اعتماد وتسجيل نقاط المباراة</span>
+                            </button>
+                            <button type="button" id="btn-cancel-edit" class="btn btn-secondary btn-lg" style="display: none;">
+                                <i data-lucide="x-circle"></i>
+                                <span>إلغاء التعديل</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Recent Supervisor Submissions Feed -->
+                <div class="glass-card recent-feed-card">
+                    <div class="card-header">
+                        <h3><i data-lucide="history"></i> آخر التسجيلات اعتماداً</h3>
+                        <button id="btn-refresh-feed" class="btn-ghost icon-only"><i data-lucide="rotate-cw"></i></button>
+                    </div>
+                    <div id="recent-scores-list" class="recent-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 2: LEADERBOARD & STANDINGS ==================== -->
+        <section id="view-leaderboard" class="app-view">
+            <div class="page-header">
+                <div class="title-group">
+                    <h2><i data-lucide="trophy"></i> جدول الترتيب والنتائج العامة</h2>
+                    <p class="desc">متابعة دقيقة ومحدثة لترتيب الفرق وتصنيف أفضل اللاعبين واللاعبين المثاليين.</p>
+                </div>
+                
+                <!-- Filters Toolbar -->
+                <div class="filters-toolbar glass-card">
+                    <div class="filter-item">
+                        <label>الفئة:</label>
+                        <select id="filter-category" class="form-control form-control-sm">
+                            <option value="all">كل الفئات</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>الأسبوع:</label>
+                        <select id="filter-week" class="form-control form-control-sm">
+                            <option value="all">كافة الأسابيع</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>المسابقة:</label>
+                        <select id="filter-competition" class="form-control form-control-sm">
+                            <option value="all">كافة المسابقات</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leaderboard Tabs -->
+            <div class="sub-tabs">
+                <button class="sub-tab-btn active" data-tab="tab-teams-standings">
+                    <i data-lucide="shield"></i> ترتيب الفرق
+                </button>
+                <button class="sub-tab-btn" data-tab="tab-best-players">
+                    <i data-lucide="star"></i> لائحة أفضل اللاعبين
+                </button>
+                <button class="sub-tab-btn" data-tab="tab-ideal-players">
+                    <i data-lucide="heart"></i> لائحة اللاعبين المثاليين
+                </button>
+                <button class="sub-tab-btn" data-tab="tab-penalties">
+                    <i data-lucide="alert-circle"></i> سجل الخصومات والعقوبات
+                </button>
+            </div>
+
+            <!-- Tab 1: Teams Standings -->
+            <div id="tab-teams-standings" class="tab-content active">
+                <div class="glass-card table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>المركز</th>
+                                <th>الفريق</th>
+                                <th>الفئة</th>
+                                <th>لعب</th>
+                                <th>فوز</th>
+                                <th>تعادل</th>
+                                <th>خسارة</th>
+                                <th>له (أهداف)</th>
+                                <th>عليه</th>
+                                <th>الخصومات</th>
+                                <th>إجمالي النقاط</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teams-standings-tbody">
+                            <!-- Loaded Dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 2: Best Players -->
+            <div id="tab-best-players" class="tab-content">
+                <div class="glass-card table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>الترتيب</th>
+                                <th>اللاعب (اسم ثلاثي)</th>
+                                <th>الفريق</th>
+                                <th>الفئة</th>
+                                <th>عدد مرات التتويج بـ (أفضل لاعب)</th>
+                                <th>إجمالي النقاط المكتسبة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="best-players-tbody">
+                            <!-- Loaded Dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 3: Ideal Players -->
+            <div id="tab-ideal-players" class="tab-content">
+                <div class="glass-card table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>الترتيب</th>
+                                <th>اللاعب المثالي</th>
+                                <th>الفريق</th>
+                                <th>الفئة</th>
+                                <th>عدد مرات الاختيار (الروح الرياضية)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ideal-players-tbody">
+                            <!-- Loaded Dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 4: Penalties Log -->
+            <div id="tab-penalties" class="tab-content">
+                <div class="glass-card table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ والوقت</th>
+                                <th>اللاعب المعاقب</th>
+                                <th>الفريق</th>
+                                <th>مقدار الخصم</th>
+                                <th>السبب</th>
+                                <th>المشرف المنفذ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="penalties-log-tbody">
+                            <!-- Loaded Dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 3: ANALYTICS & CHARTS ==================== -->
+        <section id="view-analytics" class="app-view">
+            <div class="page-header">
+                <div class="title-group">
+                    <h2><i data-lucide="pie-chart"></i> الرسوم البيانية وتحليلات الأداء</h2>
+                    <p class="desc">رؤية بصرية شاملة لمستويات الفرق ومقارنة الأداء عبر الأسابيع.</p>
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="glass-card chart-card">
+                    <h3><i data-lucide="bar-chart-2"></i> نقاط الفرق في فئة الأشبال</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-cubs-teams"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card chart-card">
+                    <h3><i data-lucide="bar-chart-2"></i> نقاط الفرق في فئة الفتيان</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-youths-teams"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card chart-card full-width">
+                    <h3><i data-lucide="line-chart"></i> توزيع المباريات المسجلة حسب المسابقة والأسابيع</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-weekly-distribution"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 4: EXCEL IMPORT/EXPORT & REPORTS ==================== -->
+        <section id="view-excel" class="app-view">
+            <div class="page-header">
+                <div class="title-group">
+                    <h2><i data-lucide="file-spreadsheet"></i> مركز تصدير واستيراد تقارير Excel</h2>
+                    <p class="desc">استيراد وتصدير كافة بيانات المشاركين والفرق والنتائج عبر ملفات إكسل بسرعة فائقة.</p>
+                </div>
+            </div>
+
+            <div class="excel-tools-grid">
+                <!-- Export Card -->
+                <div class="glass-card tool-card">
+                    <div class="card-icon icon-export">
+                        <i data-lucide="download"></i>
+                    </div>
+                    <h3>تصدير البيانات إلى Excel</h3>
+                    <p>قم بتنزيل ملفات إكسل شاملة ومنسقة لكافة نتائج المنافسات، جدول الترتيب، وسجل النقاط التفصيلي.</p>
+                    
+                    <div class="action-buttons-group">
+                        <button id="btn-export-standings" class="btn btn-outline-success btn-block">
+                            <i data-lucide="file-spreadsheet"></i> تصدير جدول الترتيب العام (Excel)
+                        </button>
+                        <button id="btn-export-full-logs" class="btn btn-outline-primary btn-block mt-2">
+                            <i data-lucide="file-spreadsheet"></i> تصدير سجل النتائج التفصيلي (Excel)
+                        </button>
+                        <button id="btn-export-participants" class="btn btn-outline-info btn-block mt-2">
+                            <i data-lucide="users"></i> تصدير قائمة المشاركين والفرق (Excel)
+                        </button>
+                        <button id="btn-print-report" class="btn btn-secondary btn-block mt-2">
+                            <i data-lucide="printer"></i> طباعة تقرير مظهر (PDF / Print)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Import Card -->
+                <div class="glass-card tool-card">
+                    <div class="card-icon icon-import">
+                        <i data-lucide="upload-cloud"></i>
+                    </div>
+                    <h3>استيراد بيانات المشاركين من Excel</h3>
+                    <p>رفع ملف إكسل لإضافة المشاركين والفرق دفعة واحدة دون الحاجة للإدخال اليدوي.</p>
+                    
+                    <div class="upload-dropzone" id="excel-dropzone">
+                        <i data-lucide="file-up"></i>
+                        <span>اسحب ملف Excel هنا أو اضغط للاختيار</span>
+                        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;">
+                    </div>
+                    
+                    <div class="sample-template-notice mt-3">
+                        <small><i data-lucide="info"></i> يُفضل استخدام نموذج الهيكل المتوافق: (الاسم الثلاثي | اسم الفريق | الفئة)</small>
+                        <button id="btn-download-sample-excel" class="btn-link text-sm"><i data-lucide="download-cloud"></i> تحميل نموذج إكسل تجريبي</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 5: ADMIN CONTROL PANEL ==================== -->
+        <section id="view-admin" class="app-view">
+            <div class="page-header">
+                <div class="title-group">
+                    <h2><i data-lucide="shield-alert"></i> لوحة التحكم والإدارة الشاملة</h2>
+                    <p class="desc">التحكم الكامل بكافة مدخلات النظام: المشاركون، الفرق، الفئات، المسابقات، الأسابيع، والمشرفون.</p>
+                </div>
+            </div>
+
+            <!-- Admin Navigation Subtabs -->
+            <div class="sub-tabs admin-sub-tabs">
+                <button class="admin-tab-btn active" data-admin-tab="adm-participants"><i data-lucide="user"></i> المشاركون</button>
+                <button class="admin-tab-btn" data-admin-tab="adm-teams"><i data-lucide="shield"></i> الفرق</button>
+                <button class="admin-tab-btn" data-admin-tab="adm-categories"><i data-lucide="layers"></i> الفئات</button>
+                <button class="admin-tab-btn" data-admin-tab="adm-competitions"><i data-lucide="target"></i> المسابقات</button>
+                <button class="admin-tab-btn" data-admin-tab="adm-weeks"><i data-lucide="calendar"></i> الأسابيع</button>
+                <button class="admin-tab-btn" data-admin-tab="adm-supervisors"><i data-lucide="users"></i> المشرفون والأنظمة</button>
+                <button class="admin-tab-btn" data-admin-tab="adm-audit"><i data-lucide="activity"></i> سجل التدقيق</button>
+                <button class="admin-tab-btn" data-admin-tab="adm-supabase"><i data-lucide="database"></i> الربط السحابي (Supabase)</button>
+            </div>
+
+            <!-- Admin Tab 1: Participants -->
+            <div id="adm-participants" class="admin-tab-content active">
+                <div class="admin-action-bar">
+                    <button id="btn-add-participant" class="btn btn-primary"><i data-lucide="user-plus"></i> إضافة مشارك جديد</button>
+                    <input type="text" id="search-participant-input" class="form-control form-control-sm search-box" placeholder="بحث باسم المشارك أو الفريق...">
+                </div>
+                <div class="glass-card table-responsive mt-3">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>الاسم الثلاثي</th>
+                                <th>الفريق</th>
+                                <th>الفئة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-participants-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Tab 2: Teams -->
+            <div id="adm-teams" class="admin-tab-content">
+                <div class="admin-action-bar">
+                    <button id="btn-add-team" class="btn btn-primary"><i data-lucide="plus-square"></i> إضافة فريق جديد</button>
+                </div>
+                <div class="glass-card table-responsive mt-3">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>اسم الفريق</th>
+                                <th>الفئة التابعة</th>
+                                <th>اللون المخصص</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-teams-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Tab 3: Categories -->
+            <div id="adm-categories" class="admin-tab-content">
+                <div class="admin-action-bar">
+                    <button id="btn-add-category" class="btn btn-primary"><i data-lucide="folder-plus"></i> إضافة فئة عمرية جديدة</button>
+                </div>
+                <div class="glass-card table-responsive mt-3">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>اسم الفئة</th>
+                                <th>الوصف</th>
+                                <th>عدد الفرق</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-categories-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Tab 4: Competitions -->
+            <div id="adm-competitions" class="admin-tab-content">
+                <div class="admin-action-bar">
+                    <button id="btn-add-competition" class="btn btn-primary"><i data-lucide="plus"></i> إضافة فقرة / مسابقة جديدة</button>
+                </div>
+                <div class="glass-card table-responsive mt-3">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>عنوان الفقرة / المسابقة</th>
+                                <th>نقاط الفوز</th>
+                                <th>نقاط التعادل</th>
+                                <th>نقاط الخسارة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-competitions-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Tab 5: Weeks -->
+            <div id="adm-weeks" class="admin-tab-content">
+                <div class="admin-action-bar">
+                    <button id="btn-add-week" class="btn btn-primary"><i data-lucide="calendar-plus"></i> إضافة أسبوع / جولة جديدة</button>
+                </div>
+                <div class="glass-card table-responsive mt-3">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>اسم الأسبوع</th>
+                                <th>الحالة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-weeks-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Tab 6: Supervisors -->
+            <div id="adm-supervisors" class="admin-tab-content">
+                <div class="admin-action-bar">
+                    <button id="btn-add-supervisor" class="btn btn-primary"><i data-lucide="user-plus"></i> إضافة حساب مشرف جديد</button>
+                </div>
+                <div class="glass-card table-responsive mt-3">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>الاسم الكامل</th>
+                                <th>اسم المستخدم</th>
+                                <th>الدور الصلاحية</th>
+                                <th>تاريخ الإنشاء</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-supervisors-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Tab 7: Audit Log -->
+            <div id="adm-audit" class="admin-tab-content">
+                <div class="glass-card table-responsive mt-3">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ والوقت</th>
+                                <th>المشرف المنفذ</th>
+                                <th>نوع الإجراء</th>
+                                <th>تفاصيل العملية</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-audit-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Tab 8: Supabase Cloud Database -->
+            <div id="adm-supabase" class="admin-tab-content">
+                <div class="glass-card">
+                    <h3><i data-lucide="database"></i> إعدادات قاعدة البيانات السحابية الدائمة (Supabase Cloud)</h3>
+                    <p class="text-secondary mt-1">قم بإدخال بيانات الربط لحفظ كافة الفرق والمشاركين والمباريات سحابياً والدخول من أي جهاز في العالم.</p>
+                    
+                    <form id="supabase-settings-form" class="mt-4">
+                        <div class="form-group">
+                            <label for="sup-url-input"><i data-lucide="link"></i> رابط مشروع Supabase (Supabase Project URL) *</label>
+                            <input type="url" id="sup-url-input" class="form-control" placeholder="https://your-project.supabase.co" required>
+                        </div>
+                        <div class="form-group mt-3">
+                            <label for="sup-key-input"><i data-lucide="key"></i> مفتاح الوصول (Supabase Anon Key) *</label>
+                            <input type="text" id="sup-key-input" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsIn..." required>
+                        </div>
+                        <div class="form-actions mt-4" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i data-lucide="check-circle-2"></i>
+                                <span>حفظ وتأكيد الربط السحابي الدائم</span>
+                            </button>
+                            <button type="button" id="btn-sync-cloud-now" class="btn btn-primary btn-lg">
+                                <i data-lucide="refresh-cw"></i>
+                                <span>مزامنة وجلب البيانات السحابية الآن</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ==================== MODALS CONTAINER ==================== -->
+    
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-box glass-card">
+            <div class="modal-header">
+                <h3><i data-lucide="key-round"></i> تسجيل دخول المشرف / المدير</h3>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <form id="login-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="login-username"><i data-lucide="user"></i> اسم المستخدم *</label>
+                        <input type="text" id="login-username" class="form-control" placeholder="اسم المستخدم..." required>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="login-password"><i data-lucide="lock"></i> كلمة المرور *</label>
+                        <input type="password" id="login-password" class="form-control" placeholder="كلمة المرور..." required>
+                    </div>
+                    <div class="login-hints mt-3">
+                        <small>حساب المدير الافتراضي: <code>admin</code> / كلمة المرور: <code>admin123</code></small><br>
+                        <small>حساب المشرف التجريبي: <code>supervisor1</code> / كلمة المرور: <code>123456</code></small>
+                    </div>
+                </div>
+                <div class="modal-footer mt-4">
+                    <button type="button" class="btn btn-secondary modal-close-btn">إلغاء</button>
+                    <button type="submit" class="btn btn-primary"><i data-lucide="log-in"></i> دخول النظام</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Generic Admin Entity Modal (Used for Create/Edit) -->
+    <div id="entity-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-box glass-card">
+            <div class="modal-header">
+                <h3 id="entity-modal-title">إضافة عنصر جديد</h3>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <form id="entity-form">
+                <div class="modal-body" id="entity-modal-fields">
+                    <!-- Injected dynamically based on entity type -->
+                </div>
+                <div class="modal-footer mt-4">
+                    <button type="button" class="btn btn-secondary modal-close-btn">إلغاء</button>
+                    <button type="submit" class="btn btn-success"><i data-lucide="save"></i> حفظ البيانات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/services/audit.js"></script>
+    <script src="js/services/excel.js"></script>
+    <script src="js/components/scoring.js"></script>
+    <script src="js/components/leaderboard.js"></script>
+    <script src="js/components/analytics.js"></script>
+    <script src="js/components/admin.js"></script>
+    <script src="js/app.js"></script>
+
+    <script>
+        // Initialize Lucide icons on DOM render
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

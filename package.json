@@ -1,0 +1,19 @@
+{
+  "name": "competition-app",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "start": "node build.js",
+    "dev": "powershell -ExecutionPolicy Bypass -File ./server.ps1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "chart.js": "^4.4.1",
+    "lucide-react": "^0.300.0",
+    "react": "^18.2.0",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.2.0",
+    "xlsx": "^0.18.5"
+  }
+}
