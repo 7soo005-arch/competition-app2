@@ -1,5 +1,5 @@
 /* ==========================================================================
-   COMPETITION MANAGEMENT SYSTEM - RELATIONAL & SUPABASE CLOUD DATABASE (db.js)
+   COMPETITION MANAGEMENT SYSTEM - SUPABASE CLOUD DATABASE ENGINE (db.js)
    ========================================================================== */
 
 const DB_KEYS = {
@@ -28,12 +28,23 @@ const TABLE_MAP = {
 
 class DatabaseEngine {
     constructor() {
+        this.cache = {
+            [DB_KEYS.CATEGORIES]: [],
+            [DB_KEYS.TEAMS]: [],
+            [DB_KEYS.PARTICIPANTS]: [],
+            [DB_KEYS.COMPETITIONS]: [],
+            [DB_KEYS.WEEKS]: [],
+            [DB_KEYS.SUPERVISORS]: [],
+            [DB_KEYS.MATCH_RECORDS]: [],
+            [DB_KEYS.SCORE_ENTRIES]: [],
+            [DB_KEYS.AUDIT_LOGS]: []
+        };
         this.cloudClient = null;
         this.initDefaultSeed();
         this.initCloudSync();
     }
 
-    // Initialize Cloud Sync with Supabase
+    // Initialize Supabase Cloud Connection & Realtime Listeners
     initCloudSync() {
         const url = localStorage.getItem('comp_supabase_url') || window.ENV_SUPABASE_URL || '';
         const key = localStorage.getItem('comp_supabase_key') || window.ENV_SUPABASE_KEY || '';
@@ -43,13 +54,31 @@ class DatabaseEngine {
                 this.cloudClient = window.supabase.createClient(url, key);
                 console.log('⚡ Connected to Supabase Cloud Database:', url);
                 this.pullAllTablesFromCloud();
+                this.subscribeToRealtimeChanges();
             } catch (e) {
-                console.error('Supabase initialization failed:', e);
+                console.error('Supabase initialization error:', e);
             }
         }
     }
 
-    // Set & Save Supabase Credentials
+    // Subscribe to Supabase Postgres Realtime Updates across all devices
+    subscribeToRealtimeChanges() {
+        if (!this.cloudClient) return;
+
+        try {
+            this.cloudClient
+                .channel('public-db-changes')
+                .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+                    console.log('🔄 Realtime Cloud Update Received:', payload);
+                    this.pullAllTablesFromCloud();
+                })
+                .subscribe();
+        } catch (e) {
+            console.warn('Realtime subscription error:', e);
+        }
+    }
+
+    // Set Credentials dynamically from Admin panel
     setSupabaseCredentials(url, key) {
         localStorage.setItem('comp_supabase_url', url.trim());
         localStorage.setItem('comp_supabase_key', key.trim());
@@ -58,7 +87,7 @@ class DatabaseEngine {
         this.initCloudSync();
     }
 
-    // Sync all tables from Supabase Cloud
+    // Pull all tables from Supabase Cloud
     async pullAllTablesFromCloud() {
         if (!this.cloudClient) return;
 
@@ -67,15 +96,19 @@ class DatabaseEngine {
             const tableName = TABLE_MAP[key];
             try {
                 const { data, error } = await this.cloudClient.from(tableName).select('*');
-                if (!error && data && data.length > 0) {
-                    this.saveCollection(key, data);
+                if (!error && data) {
+                    this.cache[key] = data;
                 }
             } catch (e) {
                 console.warn(`Failed to pull table ${tableName} from Supabase:`, e);
             }
         }
 
-        // Trigger UI refreshes after cloud pull
+        // Trigger UI Refreshes
+        this.refreshAllComponents();
+    }
+
+    refreshAllComponents() {
         if (window.leaderboardComponent) window.leaderboardComponent.renderAll();
         if (window.scoringComponent) {
             window.scoringComponent.populateDropdowns();
@@ -85,167 +118,116 @@ class DatabaseEngine {
         if (window.adminComponent) window.adminComponent.renderCurrentTab();
     }
 
-    // Storage helpers
-    getCollection(key) {
-        try {
-            const data = localStorage.getItem(key);
-            return data ? JSON.parse(data) : [];
-        } catch (e) {
-            console.error(`Error reading key ${key} from storage:`, e);
-            return [];
-        }
-    }
-
-    saveCollection(key, data) {
-        try {
-            localStorage.setItem(key, JSON.stringify(data));
-        } catch (e) {
-            console.error(`Error saving key ${key} to storage:`, e);
-        }
-    }
-
-    // Generic CRUD with Async Cloud Sync
+    // Direct Memory & Supabase Cloud CRUD (No Local Storage data)
     getAll(key) {
-        return this.getCollection(key);
+        return this.cache[key] || [];
     }
 
     getById(key, id) {
-        const items = this.getCollection(key);
+        const items = this.getAll(key);
         return items.find(item => item.id === id);
     }
 
-    insert(key, item) {
-        const items = this.getCollection(key);
+    async insert(key, item) {
         if (!item.id) {
             item.id = 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         }
         item.created_at = item.created_at || new Date().toISOString();
-        items.push(item);
-        this.saveCollection(key, items);
 
-        // Async Push to Supabase Cloud
+        // Add to cache
+        this.cache[key] = [...(this.cache[key] || []), item];
+
+        // Push to Supabase Cloud
         if (this.cloudClient) {
             const tableName = TABLE_MAP[key];
-            this.cloudClient.from(tableName).insert([item]).then(({ error }) => {
-                if (error) console.error(`Supabase cloud insert error on ${tableName}:`, error);
-            });
+            const { data, error } = await this.cloudClient.from(tableName).insert([item]).select();
+            if (error) {
+                console.error(`Supabase cloud insert error on ${tableName}:`, error);
+            } else if (data && data[0]) {
+                const idx = this.cache[key].findIndex(i => i.id === item.id);
+                if (idx !== -1) this.cache[key][idx] = data[0];
+            }
         }
 
+        this.refreshAllComponents();
         return item;
     }
 
-    update(key, id, updatedFields) {
-        const items = this.getCollection(key);
+    async update(key, id, updatedFields) {
+        const items = this.getAll(key);
         const index = items.findIndex(item => item.id === id);
         if (index !== -1) {
-            items[index] = { ...items[index], ...updatedFields, updated_at: new Date().toISOString() };
-            this.saveCollection(key, items);
+            const updatedItem = { ...items[index], ...updatedFields, updated_at: new Date().toISOString() };
+            this.cache[key][index] = updatedItem;
 
-            // Async Update on Supabase Cloud
+            // Push to Supabase Cloud
             if (this.cloudClient) {
                 const tableName = TABLE_MAP[key];
-                this.cloudClient.from(tableName).update(updatedFields).eq('id', id).then(({ error }) => {
-                    if (error) console.error(`Supabase cloud update error on ${tableName}:`, error);
-                });
+                const { error } = await this.cloudClient.from(tableName).update(updatedFields).eq('id', id);
+                if (error) console.error(`Supabase cloud update error on ${tableName}:`, error);
             }
 
-            return items[index];
+            this.refreshAllComponents();
+            return updatedItem;
         }
         return null;
     }
 
-    delete(key, id) {
-        let items = this.getCollection(key);
-        items = items.filter(item => item.id !== id);
-        this.saveCollection(key, items);
+    async delete(key, id) {
+        this.cache[key] = (this.cache[key] || []).filter(item => item.id !== id);
 
-        // Async Delete on Supabase Cloud
+        // Delete from Supabase Cloud
         if (this.cloudClient) {
             const tableName = TABLE_MAP[key];
-            this.cloudClient.from(tableName).delete().eq('id', id).then(({ error }) => {
-                if (error) console.error(`Supabase cloud delete error on ${tableName}:`, error);
-            });
+            const { error } = await this.cloudClient.from(tableName).delete().eq('id', id);
+            if (error) console.error(`Supabase cloud delete error on ${tableName}:`, error);
         }
 
+        this.refreshAllComponents();
         return true;
     }
 
-    // Default Seed Initialization
+    // Initial Memory Seed Setup (Fallback before cloud pull)
     initDefaultSeed() {
-        if (!localStorage.getItem(DB_KEYS.CATEGORIES)) {
-            const defaultCategories = [
-                { id: 'cat-cubs', name: 'الأشبال', description: 'فئة الأشبال (الصفوف الأولى)', created_at: new Date().toISOString() },
-                { id: 'cat-youths', name: 'الفتيان', description: 'فئة الفتيان (الصفوف العليا)', created_at: new Date().toISOString() }
-            ];
-            this.saveCollection(DB_KEYS.CATEGORIES, defaultCategories);
-        }
+        this.cache[DB_KEYS.CATEGORIES] = [
+            { id: 'cat-cubs', name: 'الأشبال', description: 'فئة الأشبال (الصفوف الأولى)', created_at: new Date().toISOString() },
+            { id: 'cat-youths', name: 'الفتيان', description: 'فئة الفتيان (الصفوف العليا)', created_at: new Date().toISOString() }
+        ];
 
-        if (!localStorage.getItem(DB_KEYS.TEAMS)) {
-            const defaultTeams = [];
-            for (let i = 1; i <= 10; i++) {
-                defaultTeams.push({
-                    id: `team-cub-${i}`,
-                    name: `أشبال ${i}`,
-                    category_id: 'cat-cubs',
-                    color: '#3b82f6',
-                    created_at: new Date().toISOString()
-                });
-            }
-            for (let i = 1; i <= 8; i++) {
-                defaultTeams.push({
-                    id: `team-youth-${i}`,
-                    name: `فتيان ${i}`,
-                    category_id: 'cat-youths',
-                    color: '#8b5cf6',
-                    created_at: new Date().toISOString()
-                });
-            }
-            this.saveCollection(DB_KEYS.TEAMS, defaultTeams);
+        const defaultTeams = [];
+        for (let i = 1; i <= 10; i++) {
+            defaultTeams.push({ id: `team-cub-${i}`, name: `أشبال ${i}`, category_id: 'cat-cubs', color: '#3b82f6', created_at: new Date().toISOString() });
         }
+        for (let i = 1; i <= 8; i++) {
+            defaultTeams.push({ id: `team-youth-${i}`, name: `فتيان ${i}`, category_id: 'cat-youths', color: '#8b5cf6', created_at: new Date().toISOString() });
+        }
+        this.cache[DB_KEYS.TEAMS] = defaultTeams;
 
-        if (!localStorage.getItem(DB_KEYS.COMPETITIONS)) {
-            const defaultCompetitions = [
-                { id: 'comp-1', name: 'حرّيف ( كرة قدم )', type: 'sports', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() },
-                { id: 'comp-2', name: 'ذهين ( ثقافي )', type: 'quiz', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() },
-                { id: 'comp-3', name: 'منافس ( كرة يد - كرة طائرة - ألعاب حركية )', type: 'multi-sports', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() }
-            ];
-            this.saveCollection(DB_KEYS.COMPETITIONS, defaultCompetitions);
-        }
+        this.cache[DB_KEYS.COMPETITIONS] = [
+            { id: 'comp-1', name: 'حرّيف ( كرة قدم )', type: 'sports', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() },
+            { id: 'comp-2', name: 'ذهين ( ثقافي )', type: 'quiz', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() },
+            { id: 'comp-3', name: 'منافس ( كرة يد - كرة طائرة - ألعاب حركية )', type: 'multi-sports', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() }
+        ];
 
-        if (!localStorage.getItem(DB_KEYS.WEEKS)) {
-            const defaultWeeks = [
-                { id: 'week-1', name: 'الأسبوع الأول', is_active: false },
-                { id: 'week-2', name: 'الأسبوع الثاني', is_active: true },
-                { id: 'week-3', name: 'الأسبوع الثالث', is_active: false },
-                { id: 'week-4', name: 'الأسبوع الرابع', is_active: false },
-                { id: 'week-5', name: 'الأسبوع الخامس', is_active: false },
-                { id: 'week-6', name: 'الأسبوع السادس', is_active: false }
-            ];
-            this.saveCollection(DB_KEYS.WEEKS, defaultWeeks);
-        }
+        this.cache[DB_KEYS.WEEKS] = [
+            { id: 'week-1', name: 'الأسبوع الأول', is_active: false },
+            { id: 'week-2', name: 'الأسبوع الثاني', is_active: true },
+            { id: 'week-3', name: 'الأسبوع الثالث', is_active: false },
+            { id: 'week-4', name: 'الأسبوع الرابع', is_active: false },
+            { id: 'week-5', name: 'الأسبوع الخامس', is_active: false },
+            { id: 'week-6', name: 'الأسبوع السادس', is_active: false }
+        ];
 
-        if (!localStorage.getItem(DB_KEYS.SUPERVISORS)) {
-            const defaultSupervisors = [
-                { id: 'sup-admin', name: 'مدير النظام الرئيسي', username: 'admin', password_hash: 'admin123', role: 'admin', created_at: new Date().toISOString() },
-                { id: 'sup-1', name: 'المشرف أحمد علي', username: 'supervisor1', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() },
-                { id: 'sup-2', name: 'المشرف محمد العتيبي', username: 'supervisor2', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() }
-            ];
-            this.saveCollection(DB_KEYS.SUPERVISORS, defaultSupervisors);
-        }
+        this.cache[DB_KEYS.SUPERVISORS] = [
+            { id: 'sup-admin', name: 'مدير النظام الرئيسي', username: 'admin', password_hash: 'admin123', role: 'admin', created_at: new Date().toISOString() },
+            { id: 'sup-1', name: 'المشرف أحمد علي', username: 'supervisor1', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() },
+            { id: 'sup-2', name: 'المشرف محمد العتيبي', username: 'supervisor2', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() }
+        ];
 
-        if (!localStorage.getItem(DB_KEYS.PARTICIPANTS)) {
-            this.saveCollection(DB_KEYS.PARTICIPANTS, []);
-        }
-
-        if (!localStorage.getItem(DB_KEYS.MATCH_RECORDS)) {
-            this.saveCollection(DB_KEYS.MATCH_RECORDS, []);
-        }
-        if (!localStorage.getItem(DB_KEYS.SCORE_ENTRIES)) {
-            this.saveCollection(DB_KEYS.SCORE_ENTRIES, []);
-        }
-        if (!localStorage.getItem(DB_KEYS.AUDIT_LOGS)) {
-            this.saveCollection(DB_KEYS.AUDIT_LOGS, []);
-        }
+        this.cache[DB_KEYS.PARTICIPANTS] = [];
+        this.cache[DB_KEYS.MATCH_RECORDS] = [];
+        this.cache[DB_KEYS.SCORE_ENTRIES] = [];
+        this.cache[DB_KEYS.AUDIT_LOGS] = [];
     }
 }
 
