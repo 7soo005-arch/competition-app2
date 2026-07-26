@@ -114,11 +114,11 @@ class AdminComponent {
 
             return `
                 <tr>
-                    <td>${i + 1}</td>
-                    <td><strong>${p.full_name}</strong></td>
-                    <td>${team ? team.name : '-'}</td>
-                    <td><span class="badge badge-accent">${cat ? cat.name : '-'}</span></td>
-                    <td>
+                    <td data-label="#">${i + 1}</td>
+                    <td data-label="الاسم الثلاثي"><strong>${p.full_name}</strong></td>
+                    <td data-label="الفريق">${team ? team.name : '-'}</td>
+                    <td data-label="الفئة"><span class="badge badge-accent">${cat ? cat.name : '-'}</span></td>
+                    <td data-label="إجراءات">
                         <button class="btn-ghost icon-only" onclick="adminComponent.editEntity('participant', '${p.id}')"><i data-lucide="edit"></i></button>
                         <button class="btn-ghost icon-only text-danger" onclick="adminComponent.deleteEntity('participant', '${p.id}')"><i data-lucide="trash-2"></i></button>
                     </td>
@@ -140,11 +140,11 @@ class AdminComponent {
             const cat = categories.find(c => c.id === t.category_id);
             return `
                 <tr>
-                    <td>${i + 1}</td>
-                    <td><strong>${t.name}</strong></td>
-                    <td><span class="badge badge-accent">${cat ? cat.name : '-'}</span></td>
-                    <td><span style="display:inline-block; width:20px; height:20px; border-radius:50%; background:${t.color || '#3b82f6'}; border:1px solid #fff;"></span></td>
-                    <td>
+                    <td data-label="#">${i + 1}</td>
+                    <td data-label="اسم الفريق"><strong>${t.name}</strong></td>
+                    <td data-label="الفئة"><span class="badge badge-accent">${cat ? cat.name : '-'}</span></td>
+                    <td data-label="اللون"><span style="display:inline-block; width:20px; height:20px; border-radius:50%; background:${t.color || '#3b82f6'}; border:1px solid #fff;"></span></td>
+                    <td data-label="إجراءات">
                         <button class="btn-ghost icon-only" onclick="adminComponent.editEntity('team', '${t.id}')"><i data-lucide="edit"></i></button>
                         <button class="btn-ghost icon-only text-danger" onclick="adminComponent.deleteEntity('team', '${t.id}')"><i data-lucide="trash-2"></i></button>
                     </td>
@@ -166,11 +166,11 @@ class AdminComponent {
             const teamCount = teams.filter(t => t.category_id === c.id).length;
             return `
                 <tr>
-                    <td>${i + 1}</td>
-                    <td><strong>${c.name}</strong></td>
-                    <td>${c.description || '-'}</td>
-                    <td><span class="badge badge-success">${teamCount} فرق</span></td>
-                    <td>
+                    <td data-label="#">${i + 1}</td>
+                    <td data-label="اسم الفئة"><strong>${c.name}</strong></td>
+                    <td data-label="الوصف">${c.description || '-'}</td>
+                    <td data-label="عدد الفرق"><span class="badge badge-success">${teamCount} فرق</span></td>
+                    <td data-label="إجراءات">
                         <button class="btn-ghost icon-only" onclick="adminComponent.editEntity('category', '${c.id}')"><i data-lucide="edit"></i></button>
                         <button class="btn-ghost icon-only text-danger" onclick="adminComponent.deleteEntity('category', '${c.id}')"><i data-lucide="trash-2"></i></button>
                     </td>
@@ -188,12 +188,12 @@ class AdminComponent {
         const comps = db.getAll(DB_KEYS.COMPETITIONS);
         tbody.innerHTML = comps.map((c, i) => `
             <tr>
-                <td>${i + 1}</td>
-                <td><strong>${c.name}</strong></td>
-                <td class="text-success">+${c.points_win || 3}</td>
-                <td>+${c.points_draw || 1}</td>
-                <td class="text-muted">${c.points_loss || 0}</td>
-                <td>
+                <td data-label="#">${i + 1}</td>
+                <td data-label="عنوان المسابقة"><strong>${c.name}</strong></td>
+                <td data-label="نقاط الفوز" class="text-success">+${c.points_win || 3}</td>
+                <td data-label="نقاط التعادل">+${c.points_draw || 1}</td>
+                <td data-label="نقاط الخسارة" class="text-muted">${c.points_loss || 0}</td>
+                <td data-label="إجراءات">
                     <button class="btn-ghost icon-only" onclick="adminComponent.editEntity('competition', '${c.id}')"><i data-lucide="edit"></i></button>
                     <button class="btn-ghost icon-only text-danger" onclick="adminComponent.deleteEntity('competition', '${c.id}')"><i data-lucide="trash-2"></i></button>
                 </td>
@@ -210,10 +210,10 @@ class AdminComponent {
         const weeks = db.getAll(DB_KEYS.WEEKS);
         tbody.innerHTML = weeks.map((w, i) => `
             <tr>
-                <td>${i + 1}</td>
-                <td><strong>${w.name}</strong></td>
-                <td>${w.is_active ? '<span class="badge badge-success">الأسبوع النشط حالياً</span>' : '<span class="badge badge-accent">مستقبلي / منتهي</span>'}</td>
-                <td>
+                <td data-label="#">${i + 1}</td>
+                <td data-label="اسم الأسبوع"><strong>${w.name}</strong></td>
+                <td data-label="الحالة">${w.is_active ? '<span class="badge badge-success">الأسبوع النشط حالياً</span>' : '<span class="badge badge-accent">مستقبلي / منتهي</span>'}</td>
+                <td data-label="إجراءات">
                     <button class="btn-ghost icon-only" onclick="adminComponent.editEntity('week', '${w.id}')"><i data-lucide="edit"></i></button>
                     <button class="btn-ghost icon-only text-danger" onclick="adminComponent.deleteEntity('week', '${w.id}')"><i data-lucide="trash-2"></i></button>
                 </td>
@@ -230,12 +230,12 @@ class AdminComponent {
         const sups = db.getAll(DB_KEYS.SUPERVISORS);
         tbody.innerHTML = sups.map((s, i) => `
             <tr>
-                <td>${i + 1}</td>
-                <td><strong>${s.name}</strong></td>
-                <td><code>${s.username}</code></td>
-                <td>${s.role === 'admin' ? '<span class="badge badge-danger">مدير النظام</span>' : '<span class="badge badge-accent">مشرف منافسة</span>'}</td>
-                <td><small>${new Date(s.created_at || Date.now()).toLocaleDateString('ar-SA')}</small></td>
-                <td>
+                <td data-label="#">${i + 1}</td>
+                <td data-label="الاسم الكامل"><strong>${s.name}</strong></td>
+                <td data-label="اسم المستخدم"><code>${s.username}</code></td>
+                <td data-label="الدور / الصلاحية">${s.role === 'admin' ? '<span class="badge badge-danger">مدير النظام</span>' : '<span class="badge badge-accent">مشرف منافسة</span>'}</td>
+                <td data-label="تاريخ الإنشاء"><small>${new Date(s.created_at || Date.now()).toLocaleDateString('ar-SA')}</small></td>
+                <td data-label="إجراءات">
                     <button class="btn-ghost icon-only" onclick="adminComponent.editEntity('supervisor', '${s.id}')"><i data-lucide="edit"></i></button>
                     ${s.username !== 'admin' ? `<button class="btn-ghost icon-only text-danger" onclick="adminComponent.deleteEntity('supervisor', '${s.id}')"><i data-lucide="trash-2"></i></button>` : ''}
                 </td>
@@ -257,10 +257,10 @@ class AdminComponent {
 
         tbody.innerHTML = logs.map(l => `
             <tr>
-                <td><small>${new Date(l.timestamp).toLocaleString('ar-SA')}</small></td>
-                <td><strong>${l.supervisor_name}</strong></td>
-                <td><span class="badge badge-accent">${l.action}</span></td>
-                <td>${l.details}</td>
+                <td data-label="التاريخ والوقت"><small>${new Date(l.timestamp).toLocaleString('ar-SA')}</small></td>
+                <td data-label="المشرف المنفذ"><strong>${l.supervisor_name}</strong></td>
+                <td data-label="نوع الإجراء"><span class="badge badge-accent">${l.action}</span></td>
+                <td data-label="تفاصيل العملية">${l.details}</td>
             </tr>
         `).join('');
     }

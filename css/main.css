@@ -323,50 +323,52 @@ body {
 
 @media (max-width: 768px) {
     .main-header {
-        padding: 8px 12px;
+        padding: 6px 10px;
     }
 
     .app-body {
-        padding: 10px 8px;
+        padding: 8px 10px;
+        max-width: min(94vw, 540px);
+        margin: 0 auto;
     }
 
     .page-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 6px;
+        margin-bottom: 10px;
     }
 
     .title-group h2 {
-        font-size: 1.15rem;
+        font-size: 1.08rem;
     }
 
     .title-group .desc {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
     }
 
     .nav-btn {
-        padding: 6px 12px;
-        font-size: 0.82rem;
-        min-height: 40px;
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        min-height: 36px;
         flex-shrink: 0;
-        gap: 6px;
+        gap: 5px;
     }
 
     .nav-btn span {
         display: inline;
-        font-size: 0.82rem;
+        font-size: 0.8rem;
     }
 
     .glass-card {
-        padding: 14px 12px;
+        padding: 12px 10px;
         border-radius: var(--radius-md);
     }
 
     .supervisor-status-card {
         width: 100%;
-        padding: 8px 12px;
-        font-size: 0.82rem;
+        padding: 6px 10px;
+        font-size: 0.78rem;
     }
 }
 

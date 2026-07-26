@@ -172,17 +172,17 @@ class LeaderboardComponent {
 
             return `
                 <tr>
-                    <td><span class="rank-badge ${rankBadgeClass}">${index + 1}</span></td>
-                    <td><strong>${item.team_name}</strong></td>
-                    <td><span class="badge badge-accent">${item.category_name}</span></td>
-                    <td>${item.played}</td>
-                    <td class="text-success font-weight-bold">${item.won}</td>
-                    <td>${item.drawn}</td>
-                    <td class="text-danger">${item.lost}</td>
-                    <td>${item.goals_for}</td>
-                    <td>${item.goals_against}</td>
-                    <td class="text-danger">${item.penalties > 0 ? `-${item.penalties}` : '0'}</td>
-                    <td><strong style="font-size: 1.1rem; color: var(--primary);">${item.points}</strong></td>
+                    <td data-label="الترتيب"><span class="rank-badge ${rankBadgeClass}">${index + 1}</span></td>
+                    <td data-label="اسم الفريق"><strong>${item.team_name}</strong></td>
+                    <td data-label="الفئة"><span class="badge badge-accent">${item.category_name}</span></td>
+                    <td data-label="لعب">${item.played}</td>
+                    <td data-label="فوز" class="text-success font-weight-bold">${item.won}</td>
+                    <td data-label="تعادل">${item.drawn}</td>
+                    <td data-label="خسارة" class="text-danger">${item.lost}</td>
+                    <td data-label="له">${item.goals_for}</td>
+                    <td data-label="عليه">${item.goals_against}</td>
+                    <td data-label="خصم عقوبات" class="text-danger">${item.penalties > 0 ? `-${item.penalties}` : '0'}</td>
+                    <td data-label="النقاط الكلية"><strong style="font-size: 1.1rem; color: var(--primary);">${item.points}</strong></td>
                 </tr>
             `;
         }).join('');
@@ -227,12 +227,12 @@ class LeaderboardComponent {
 
         this.bestPlayersTbody.innerHTML = list.map((item, index) => `
             <tr>
-                <td><strong>#${index + 1}</strong></td>
-                <td><i data-lucide="star" style="color: gold; width: 16px;"></i> <strong>${item.name}</strong></td>
-                <td>${item.team_name}</td>
-                <td><span class="badge badge-accent">${item.category_name}</span></td>
-                <td><strong class="text-warning">${item.count} مرات</strong></td>
-                <td>+${item.points} نقطة</td>
+                <td data-label="المركز"><strong>#${index + 1}</strong></td>
+                <td data-label="الاسم"><i data-lucide="star" style="color: gold; width: 16px;"></i> <strong>${item.name}</strong></td>
+                <td data-label="الفريق">${item.team_name}</td>
+                <td data-label="الفئة"><span class="badge badge-accent">${item.category_name}</span></td>
+                <td data-label="مرات الفوز"><strong class="text-warning">${item.count} مرات</strong></td>
+                <td data-label="النقاط">+${item.points} نقطة</td>
             </tr>
         `).join('');
         lucide.createIcons();
@@ -275,11 +275,11 @@ class LeaderboardComponent {
 
         this.idealPlayersTbody.innerHTML = list.map((item, index) => `
             <tr>
-                <td><strong>#${index + 1}</strong></td>
-                <td><i data-lucide="heart" style="color: #ef4444; width: 16px;"></i> <strong>${item.name}</strong></td>
-                <td>${item.team_name}</td>
-                <td><span class="badge badge-accent">${item.category_name}</span></td>
-                <td><strong class="text-success">${item.count} مرات</strong></td>
+                <td data-label="المركز"><strong>#${index + 1}</strong></td>
+                <td data-label="الاسم"><i data-lucide="heart" style="color: #ef4444; width: 16px;"></i> <strong>${item.name}</strong></td>
+                <td data-label="الفريق">${item.team_name}</td>
+                <td data-label="الفئة"><span class="badge badge-accent">${item.category_name}</span></td>
+                <td data-label="التكريمات"><strong class="text-success">${item.count} مرات</strong></td>
             </tr>
         `).join('');
         lucide.createIcons();
@@ -305,12 +305,12 @@ class LeaderboardComponent {
 
             return `
                 <tr>
-                    <td><small>${new Date(e.created_at).toLocaleString('ar-SA')}</small></td>
-                    <td><strong>${p ? p.full_name : '-'}</strong></td>
-                    <td>${team ? team.name : '-'}</td>
-                    <td><strong class="badge badge-danger">${e.points_change} نقطة</strong></td>
-                    <td>${e.reason_notes || 'بدون سبب مذكور'}</td>
-                    <td><small>${sup ? sup.name : 'مشرف'}</small></td>
+                    <td data-label="التاريخ"><small>${new Date(e.created_at).toLocaleString('ar-SA')}</small></td>
+                    <td data-label="اسم المشارك"><strong>${p ? p.full_name : '-'}</strong></td>
+                    <td data-label="الفريق">${team ? team.name : '-'}</td>
+                    <td data-label="الخصم"><strong class="badge badge-danger">${e.points_change} نقطة</strong></td>
+                    <td data-label="سبب الخصم">${e.reason_notes || 'بدون سبب مذكور'}</td>
+                    <td data-label="المشرف المنفذ"><small>${sup ? sup.name : 'مشرف'}</small></td>
                 </tr>
             `;
         }).join('');
