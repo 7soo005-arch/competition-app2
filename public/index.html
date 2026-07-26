@@ -48,6 +48,9 @@
     <header class="main-header">
         <div class="header-container">
             <div class="brand">
+                <button id="mobile-menu-toggle" class="mobile-menu-btn" aria-label="قائمة التنقل">
+                    <i data-lucide="menu"></i>
+                </button>
                 <div class="logo-icon">
                     <i data-lucide="trophy"></i>
                 </div>
@@ -57,8 +60,15 @@
                 </div>
             </div>
 
-            <!-- Main Navigation Tabs -->
+            <!-- Mobile Backdrop Overlay -->
+            <div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop"></div>
+
+            <!-- Main Navigation Tabs / Side Drawer -->
             <nav class="main-nav">
+                <div class="mobile-drawer-header">
+                    <span>القائمة الرئيسية</span>
+                    <button id="mobile-drawer-close" aria-label="إغلاق">&times;</button>
+                </div>
                 <button class="nav-btn active" data-view="scoring">
                     <i data-lucide="edit-3"></i>
                     <span>تسجيل النقاط</span>

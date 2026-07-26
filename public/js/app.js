@@ -15,11 +15,38 @@ class App {
     }
 
     bindEvents() {
+        // Mobile Side Drawer Controls
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const mobileDrawerClose = document.getElementById('mobile-drawer-close');
+        const mobileDrawerBackdrop = document.getElementById('mobile-drawer-backdrop');
+        const mainNav = document.querySelector('.main-nav');
+
+        const closeMobileDrawer = () => {
+            if (mainNav) mainNav.classList.remove('open');
+            if (mobileDrawerBackdrop) mobileDrawerBackdrop.classList.remove('open');
+        };
+
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', () => {
+                if (mainNav) mainNav.classList.toggle('open');
+                if (mobileDrawerBackdrop) mobileDrawerBackdrop.classList.toggle('open');
+            });
+        }
+
+        if (mobileDrawerClose) {
+            mobileDrawerClose.addEventListener('click', closeMobileDrawer);
+        }
+
+        if (mobileDrawerBackdrop) {
+            mobileDrawerBackdrop.addEventListener('click', closeMobileDrawer);
+        }
+
         // Navigation SPA Switching
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetView = btn.getAttribute('data-view');
                 this.switchView(targetView);
+                closeMobileDrawer();
             });
         });
 
