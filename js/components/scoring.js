@@ -189,7 +189,7 @@ class ScoringComponent {
         }
     }
 
-    handleScoreSubmission() {
+    async handleScoreSubmission() {
         const currentUser = authService.getCurrentUser();
         if (!currentUser) {
             app.showToast('يرجى تسجيل الدخول أولاً لتسجيل وسلسلة النقاط بحسابك!', 'error');
@@ -224,7 +224,6 @@ class ScoringComponent {
 
         const isEditing = !!this.editingMatchId;
         const matchRecordId = isEditing ? this.editingMatchId : ('match_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4));
-
         const existingMatch = isEditing ? db.getById(DB_KEYS.MATCH_RECORDS, matchRecordId) : null;
 
         const matchRecord = {
@@ -244,74 +243,62 @@ class ScoringComponent {
         };
 
         if (isEditing) {
-            db.update(DB_KEYS.MATCH_RECORDS, matchRecordId, matchRecord);
-            if (window.supabaseDataService) window.supabaseDataService.updateMatchRecord(matchRecordId, matchRecord);
-
-            // Delete old score entries for this match ID
-            let scoreEntries = db.getAll(DB_KEYS.SCORE_ENTRIES);
-            scoreEntries = scoreEntries.filter(e => e.match_id !== matchRecordId);
-            db.saveCollection(DB_KEYS.SCORE_ENTRIES, scoreEntries);
-            if (window.supabaseDataService) window.supabaseDataService.deleteScoreEntriesForMatch(matchRecordId);
+            await db.update(DB_KEYS.MATCH_RECORDS, matchRecordId, matchRecord);
+            let oldEntries = db.getAll(DB_KEYS.SCORE_ENTRIES).filter(e => e.match_id === matchRecordId);
+            for (const entry of oldEntries) {
+                await db.delete(DB_KEYS.SCORE_ENTRIES, entry.id);
+            }
         } else {
-            db.insert(DB_KEYS.MATCH_RECORDS, matchRecord);
-            if (window.supabaseDataService) window.supabaseDataService.createMatchRecord(matchRecord);
+            await db.insert(DB_KEYS.MATCH_RECORDS, matchRecord);
         }
 
         // Record Individual Awards & Penalties
         const bestPlayerId = this.bestPlayerSelect?.value;
         if (bestPlayerId) {
-            const entry = {
+            await db.insert(DB_KEYS.SCORE_ENTRIES, {
                 match_id: matchRecord.id,
                 participant_id: bestPlayerId,
                 entry_type: 'best_player',
                 points_change: 5,
                 supervisor_id: currentUser.id,
                 created_at: new Date().toISOString()
-            };
-            db.insert(DB_KEYS.SCORE_ENTRIES, entry);
-            if (window.supabaseDataService) window.supabaseDataService.createScoreEntry(entry);
+            });
         }
 
         const topScorerId = this.topScorerSelect?.value;
         if (topScorerId) {
-            const entry = {
+            await db.insert(DB_KEYS.SCORE_ENTRIES, {
                 match_id: matchRecord.id,
                 participant_id: topScorerId,
                 entry_type: 'top_scorer',
                 points_change: 3,
                 supervisor_id: currentUser.id,
                 created_at: new Date().toISOString()
-            };
-            db.insert(DB_KEYS.SCORE_ENTRIES, entry);
-            if (window.supabaseDataService) window.supabaseDataService.createScoreEntry(entry);
+            });
         }
 
         const bestGkId = this.bestGkSelect?.value;
         if (bestGkId) {
-            const entry = {
+            await db.insert(DB_KEYS.SCORE_ENTRIES, {
                 match_id: matchRecord.id,
                 participant_id: bestGkId,
                 entry_type: 'best_goalkeeper',
                 points_change: 3,
                 supervisor_id: currentUser.id,
                 created_at: new Date().toISOString()
-            };
-            db.insert(DB_KEYS.SCORE_ENTRIES, entry);
-            if (window.supabaseDataService) window.supabaseDataService.createScoreEntry(entry);
+            });
         }
 
         const idealPlayerId = this.idealPlayerSelect?.value;
         if (idealPlayerId) {
-            const entry = {
+            await db.insert(DB_KEYS.SCORE_ENTRIES, {
                 match_id: matchRecord.id,
                 participant_id: idealPlayerId,
                 entry_type: 'ideal_player',
                 points_change: 3,
                 supervisor_id: currentUser.id,
                 created_at: new Date().toISOString()
-            };
-            db.insert(DB_KEYS.SCORE_ENTRIES, entry);
-            if (window.supabaseDataService) window.supabaseDataService.createScoreEntry(entry);
+            });
         }
 
         const penaltyPlayerId = this.penaltyPlayerSelect?.value;
@@ -319,7 +306,7 @@ class ScoringComponent {
         const penaltyReason = this.penaltyReasonInput?.value?.trim() || '';
 
         if (penaltyPlayerId && penaltyPoints > 0) {
-            const entry = {
+            await db.insert(DB_KEYS.SCORE_ENTRIES, {
                 match_id: matchRecord.id,
                 participant_id: penaltyPlayerId,
                 entry_type: 'penalty',
@@ -327,9 +314,7 @@ class ScoringComponent {
                 reason_notes: penaltyReason || 'خصم سلوكي / فني',
                 supervisor_id: currentUser.id,
                 created_at: new Date().toISOString()
-            };
-            db.insert(DB_KEYS.SCORE_ENTRIES, entry);
-            if (window.supabaseDataService) window.supabaseDataService.createScoreEntry(entry);
+            });
         }
 
         // Audit Logging
@@ -341,8 +326,7 @@ class ScoringComponent {
             ? `قام المشرف ${currentUser.name} بتعديل بيانات مباراة (${t1} ${team1Goals} - ${team2Goals} ${t2})`
             : `تم رصد مباراة (${t1} ${team1Goals} - ${team2Goals} ${t2}) بواسطة المشرف ${currentUser.name}`;
 
-        auditService.log(currentUser.id, actionName, logDetail);
-        if (window.supabaseDataService) window.supabaseDataService.createAuditLog({ supervisor_id: currentUser.id, action: actionName, details: logDetail, timestamp: new Date().toISOString() });
+        await auditService.log(currentUser.id, actionName, logDetail);
 
         app.showToast(isEditing ? 'تم تحديث بيانات المباراة وتعديل النقاط والترتيب بنجاح!' : 'تم حفظ نتيجة المباراة والجوائز بنجاح!', 'success');
 
@@ -447,7 +431,7 @@ class ScoringComponent {
         lucide.createIcons();
     }
 
-    deleteMatch(matchId) {
+    async deleteMatch(matchId) {
         const currentUser = authService.getCurrentUser();
         if (!currentUser) {
             app.showToast('يرجى تسجيل الدخول أولاً لتنفيذ الحذف!', 'error');
@@ -467,19 +451,17 @@ class ScoringComponent {
         }
 
         // Delete match record
-        db.delete(DB_KEYS.MATCH_RECORDS, matchId);
-        if (window.supabaseDataService) window.supabaseDataService.deleteMatchRecord(matchId);
+        await db.delete(DB_KEYS.MATCH_RECORDS, matchId);
 
         // Delete associated score entries
-        let scoreEntries = db.getAll(DB_KEYS.SCORE_ENTRIES);
-        scoreEntries = scoreEntries.filter(e => e.match_id !== matchId);
-        db.saveCollection(DB_KEYS.SCORE_ENTRIES, scoreEntries);
-        if (window.supabaseDataService) window.supabaseDataService.deleteScoreEntriesForMatch(matchId);
+        let scoreEntries = db.getAll(DB_KEYS.SCORE_ENTRIES).filter(e => e.match_id === matchId);
+        for (const entry of scoreEntries) {
+            await db.delete(DB_KEYS.SCORE_ENTRIES, entry.id);
+        }
 
         // Audit Logging
         const logDetail = `قام المشرف ${currentUser.name} بحذف سجل مباراة (${t1} ضد ${t2})`;
-        auditService.log(currentUser.id, 'حذف مباراة', logDetail);
-        if (window.supabaseDataService) window.supabaseDataService.createAuditLog({ supervisor_id: currentUser.id, action: 'حذف مباراة', details: logDetail, timestamp: new Date().toISOString() });
+        await auditService.log(currentUser.id, 'حذف مباراة', logDetail);
 
         app.showToast('تم حذف سجل المباراة وإعادة حساب النقاط والترتيب بنجاح.', 'success');
 

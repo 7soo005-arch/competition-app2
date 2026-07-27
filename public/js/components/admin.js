@@ -399,7 +399,7 @@ class AdminComponent {
         return '';
     }
 
-    handleEntityFormSubmit() {
+    async handleEntityFormSubmit() {
         const type = this.editingType;
         const id = this.editingId;
         const currentUser = authService.getCurrentUser();
@@ -413,8 +413,8 @@ class AdminComponent {
                 team_id: teamId,
                 category_id: team ? team.category_id : null
             };
-            if (id) db.update(DB_KEYS.PARTICIPANTS, id, data);
-            else db.insert(DB_KEYS.PARTICIPANTS, data);
+            if (id) await db.update(DB_KEYS.PARTICIPANTS, id, data);
+            else await db.insert(DB_KEYS.PARTICIPANTS, data);
 
         } else if (type === 'team') {
             data = {
@@ -422,16 +422,16 @@ class AdminComponent {
                 category_id: document.getElementById('m-team-category').value,
                 color: document.getElementById('m-team-color').value
             };
-            if (id) db.update(DB_KEYS.TEAMS, id, data);
-            else db.insert(DB_KEYS.TEAMS, data);
+            if (id) await db.update(DB_KEYS.TEAMS, id, data);
+            else await db.insert(DB_KEYS.TEAMS, data);
 
         } else if (type === 'category') {
             data = {
                 name: document.getElementById('m-cat-name').value.trim(),
                 description: document.getElementById('m-cat-desc').value.trim()
             };
-            if (id) db.update(DB_KEYS.CATEGORIES, id, data);
-            else db.insert(DB_KEYS.CATEGORIES, data);
+            if (id) await db.update(DB_KEYS.CATEGORIES, id, data);
+            else await db.insert(DB_KEYS.CATEGORIES, data);
 
         } else if (type === 'competition') {
             data = {
@@ -440,8 +440,8 @@ class AdminComponent {
                 points_draw: parseInt(document.getElementById('m-comp-draw').value) || 1,
                 points_loss: 0
             };
-            if (id) db.update(DB_KEYS.COMPETITIONS, id, data);
-            else db.insert(DB_KEYS.COMPETITIONS, data);
+            if (id) await db.update(DB_KEYS.COMPETITIONS, id, data);
+            else await db.insert(DB_KEYS.COMPETITIONS, data);
 
         } else if (type === 'week') {
             const isActive = document.getElementById('m-week-active').checked;
@@ -452,10 +452,12 @@ class AdminComponent {
             if (isActive) {
                 // reset other active weeks
                 const weeks = db.getAll(DB_KEYS.WEEKS);
-                weeks.forEach(w => db.update(DB_KEYS.WEEKS, w.id, { is_active: false }));
+                for (const w of weeks) {
+                    await db.update(DB_KEYS.WEEKS, w.id, { is_active: false });
+                }
             }
-            if (id) db.update(DB_KEYS.WEEKS, id, data);
-            else db.insert(DB_KEYS.WEEKS, data);
+            if (id) await db.update(DB_KEYS.WEEKS, id, data);
+            else await db.insert(DB_KEYS.WEEKS, data);
 
         } else if (type === 'supervisor') {
             data = {
@@ -464,11 +466,11 @@ class AdminComponent {
                 password_hash: document.getElementById('m-sup-password').value,
                 role: document.getElementById('m-sup-role').value
             };
-            if (id) db.update(DB_KEYS.SUPERVISORS, id, data);
-            else db.insert(DB_KEYS.SUPERVISORS, data);
+            if (id) await db.update(DB_KEYS.SUPERVISORS, id, data);
+            else await db.insert(DB_KEYS.SUPERVISORS, data);
         }
 
-        auditService.log(currentUser.id, id ? 'تعديل عنصر' : 'إضافة عنصر', `تم ${id ? 'تعديل' : 'إضافة'} ${this.getTypeLabel(type)}: ${data.name || data.full_name}`);
+        await auditService.log(currentUser.id, id ? 'تعديل عنصر' : 'إضافة عنصر', `تم ${id ? 'تعديل' : 'إضافة'} ${this.getTypeLabel(type)}: ${data.name || data.full_name}`);
 
         app.showToast('تم حفظ التغييرات بنجاح!', 'success');
         document.getElementById('entity-modal').style.display = 'none';
@@ -482,7 +484,7 @@ class AdminComponent {
         this.openEntityModal(type, id);
     }
 
-    deleteEntity(type, id) {
+    async deleteEntity(type, id) {
         if (!authService.isAdmin()) {
             app.showToast('يتطلب هذا الإجراء صلاحيات مدير النظام!', 'error');
             return;
@@ -490,9 +492,9 @@ class AdminComponent {
 
         if (confirm(`هل أنت تأكد من إرادتك لحذف هذا الـ (${this.getTypeLabel(type)})؟`)) {
             const keyMap = { participant: DB_KEYS.PARTICIPANTS, team: DB_KEYS.TEAMS, category: DB_KEYS.CATEGORIES, competition: DB_KEYS.COMPETITIONS, week: DB_KEYS.WEEKS, supervisor: DB_KEYS.SUPERVISORS };
-            db.delete(keyMap[type], id);
+            await db.delete(keyMap[type], id);
 
-            auditService.log(authService.getCurrentUser()?.id, 'حذف عنصر', `تم حذف ${this.getTypeLabel(type)} معرف: ${id}`);
+            await auditService.log(authService.getCurrentUser()?.id, 'حذف عنصر', `تم حذف ${this.getTypeLabel(type)} معرف: ${id}`);
             app.showToast('تم حذف العنصر بنجاح.', 'success');
 
             this.renderCurrentTab();
