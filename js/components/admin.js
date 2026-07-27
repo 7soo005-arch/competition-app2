@@ -68,6 +68,19 @@ class AdminComponent {
                 app.showToast('تمت مزامنة كافة البيانات السحابية بنجاح!', 'success');
             });
         }
+
+        const btnTestCloud = document.getElementById('btn-test-cloud-db');
+        if (btnTestCloud) {
+            btnTestCloud.addEventListener('click', async () => {
+                app.showToast('جاري فحص وتجربة الإدخال والاستعلام المباشر من Supabase...', 'info');
+                const res = await db.testCloudConnection();
+                if (res.success) {
+                    app.showToast(res.message, 'success');
+                } else {
+                    app.showToast(res.message, 'error');
+                }
+            });
+        }
     }
 
     renderCurrentTab() {

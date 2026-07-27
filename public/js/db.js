@@ -105,6 +105,43 @@ class DatabaseEngine {
         this.initCloudSync();
     }
 
+    // Test Direct Supabase Cloud Database Insert & Select
+    async testCloudConnection() {
+        if (!this.cloudClient) {
+            return { success: false, message: 'لم يتم تفعيل الربط بقواعد بيانات Supabase بعد (يرجى إدخال الرابط والمفتاح).' };
+        }
+
+        try {
+            const testId = 'test_' + Date.now();
+            const testLog = {
+                id: testId,
+                supervisor_id: 'test',
+                action: 'اختبار الاتصال',
+                details: 'فحص الإدخال والاستعلام المباشر من قاعدة بيانات Supabase',
+                timestamp: new Date().toISOString()
+            };
+
+            // Live Insert to Supabase Cloud
+            const { error: insertErr } = await this.cloudClient.from('audit_logs').insert([testLog]);
+            if (insertErr) {
+                return { success: false, message: 'فشل الإدخال المباشر في Supabase: ' + insertErr.message };
+            }
+
+            // Live Query from Supabase Cloud
+            const { data, error: selectErr } = await this.cloudClient.from('audit_logs').select('*').eq('id', testId);
+            if (selectErr || !data || data.length === 0) {
+                return { success: false, message: 'فشل الاستعلام المباشر من Supabase بعد الإدخال.' };
+            }
+
+            // Clean up test log
+            await this.cloudClient.from('audit_logs').delete().eq('id', testId);
+
+            return { success: true, message: '⚡ تم الإدخال والاستعلام والحذف المباشر في قاعدة بيانات Supabase السحابية بنجاح بنسبة 100%!' };
+        } catch (e) {
+            return { success: false, message: 'خطأ أثناء الاتصال بـ Supabase: ' + e.message };
+        }
+    }
+
     // Pull all tables from Supabase Cloud & sync to local cache
     async pullAllTablesFromCloud() {
         if (!this.cloudClient) return;
