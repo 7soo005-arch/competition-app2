@@ -147,21 +147,93 @@ class DatabaseEngine {
         if (!this.cloudClient) return;
 
         const keys = Object.keys(TABLE_MAP);
+        let hasData = false;
         for (const key of keys) {
             const tableName = TABLE_MAP[key];
             try {
                 const { data, error } = await this.cloudClient.from(tableName).select('*');
-                if (!error && data) {
+                if (!error && data && data.length > 0) {
                     this.cache[key] = data;
                     this.saveCollection(key, data);
+                    hasData = true;
                 }
             } catch (e) {
                 console.warn(`Failed to pull table ${tableName} from Supabase:`, e);
             }
         }
 
+        // If Supabase database is empty (no categories found), seed initial records to Supabase Cloud!
+        if (!hasData || !this.cache[DB_KEYS.CATEGORIES] || this.cache[DB_KEYS.CATEGORIES].length === 0) {
+            await this.seedSupabaseCloud();
+        }
+
         // Trigger UI Refreshes
         this.refreshAllComponents();
+    }
+
+    // Auto-seed initial default records directly to Supabase Cloud
+    async seedSupabaseCloud() {
+        if (!this.cloudClient) return;
+        console.log('🌱 Database is empty. Seeding initial records to Supabase Cloud...');
+
+        try {
+            // 1. Categories
+            const categories = [
+                { id: 'cat-cubs', name: 'الأشبال', description: 'فئة الأشبال (الصفوف الأولى)', created_at: new Date().toISOString() },
+                { id: 'cat-youths', name: 'الفتيان', description: 'فئة الفتيان (الصفوف العليا)', created_at: new Date().toISOString() }
+            ];
+            await this.cloudClient.from('categories').upsert(categories);
+
+            // 2. Teams
+            const defaultTeams = [];
+            for (let i = 1; i <= 10; i++) {
+                defaultTeams.push({ id: `team-cub-${i}`, name: `أشبال ${i}`, category_id: 'cat-cubs', color: '#3b82f6', created_at: new Date().toISOString() });
+            }
+            for (let i = 1; i <= 8; i++) {
+                defaultTeams.push({ id: `team-youth-${i}`, name: `فتيان ${i}`, category_id: 'cat-youths', color: '#8b5cf6', created_at: new Date().toISOString() });
+            }
+            await this.cloudClient.from('teams').upsert(defaultTeams);
+
+            // 3. Competitions
+            const defaultCompetitions = [
+                { id: 'comp-1', name: 'حرّيف ( كرة قدم )', type: 'sports', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() },
+                { id: 'comp-2', name: 'ذهين ( ثقافي )', type: 'quiz', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() },
+                { id: 'comp-3', name: 'منافس ( كرة يد - كرة طائرة - ألعاب حركية )', type: 'multi-sports', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() }
+            ];
+            await this.cloudClient.from('competitions').upsert(defaultCompetitions);
+
+            // 4. Weeks
+            const defaultWeeks = [
+                { id: 'week-1', name: 'الأسبوع الأول', is_active: false },
+                { id: 'week-2', name: 'الأسبوع الثاني', is_active: true },
+                { id: 'week-3', name: 'الأسبوع الثالث', is_active: false },
+                { id: 'week-4', name: 'الأسبوع الرابع', is_active: false },
+                { id: 'week-5', name: 'الأسبوع الخامس', is_active: false },
+                { id: 'week-6', name: 'الأسبوع السادس', is_active: false }
+            ];
+            await this.cloudClient.from('weeks').upsert(defaultWeeks);
+
+            // 5. Supervisors
+            const defaultSupervisors = [
+                { id: 'sup-admin', name: 'مدير النظام الرئيسي', username: 'admin', password_hash: 'admin123', role: 'admin', created_at: new Date().toISOString() },
+                { id: 'sup-1', name: 'المشرف الأول', username: 'supervisor1', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() },
+                { id: 'sup-2', name: 'المشرف الثاني', username: 'supervisor2', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() }
+            ];
+            await this.cloudClient.from('supervisors').upsert(defaultSupervisors);
+
+            // Re-pull updated records from Cloud
+            const keys = Object.keys(TABLE_MAP);
+            for (const key of keys) {
+                const tableName = TABLE_MAP[key];
+                const { data } = await this.cloudClient.from(tableName).select('*');
+                if (data && data.length > 0) {
+                    this.cache[key] = data;
+                    this.saveCollection(key, data);
+                }
+            }
+        } catch (err) {
+            console.error('Error auto-seeding Supabase Cloud:', err);
+        }
     }
 
     refreshAllComponents() {
