@@ -86,9 +86,33 @@ class DatabaseEngine {
         try {
             this.cloudClient
                 .channel('public-db-changes')
-                .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-                    console.log('🔄 Realtime Cloud Update Received:', payload);
-                    this.pullAllTablesFromCloud();
+                .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
+                    console.log('🔄 Realtime Cloud Event Received:', payload.eventType, payload.table, payload);
+                    
+                    const reverseMap = {
+                        'categories': DB_KEYS.CATEGORIES,
+                        'teams': DB_KEYS.TEAMS,
+                        'participants': DB_KEYS.PARTICIPANTS,
+                        'competitions': DB_KEYS.COMPETITIONS,
+                        'weeks': DB_KEYS.WEEKS,
+                        'supervisors': DB_KEYS.SUPERVISORS,
+                        'match_records': DB_KEYS.MATCH_RECORDS,
+                        'score_entries': DB_KEYS.SCORE_ENTRIES,
+                        'audit_logs': DB_KEYS.AUDIT_LOGS
+                    };
+
+                    const key = reverseMap[payload.table];
+
+                    if (payload.eventType === 'DELETE' && payload.old && payload.old.id) {
+                        const deletedId = payload.old.id;
+                        if (key && this.cache[key]) {
+                            this.cache[key] = this.cache[key].filter(item => item.id !== deletedId);
+                            this.saveCollection(key, this.cache[key]);
+                        }
+                    }
+
+                    // Re-pull all tables from cloud and refresh UI
+                    await this.pullAllTablesFromCloud();
                 })
                 .subscribe();
         } catch (e) {

@@ -135,6 +135,26 @@ CREATE POLICY "Public Full Score Entries" ON score_entries FOR ALL USING (true) 
 DROP POLICY IF EXISTS "Public Full Audit Logs" ON audit_logs;
 CREATE POLICY "Public Full Audit Logs" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
 
+-- Enable Postgres WAL Publication & Replica Identity for Supabase Realtime Deletes
+ALTER TABLE categories REPLICA IDENTITY FULL;
+ALTER TABLE teams REPLICA IDENTITY FULL;
+ALTER TABLE participants REPLICA IDENTITY FULL;
+ALTER TABLE competitions REPLICA IDENTITY FULL;
+ALTER TABLE weeks REPLICA IDENTITY FULL;
+ALTER TABLE supervisors REPLICA IDENTITY FULL;
+ALTER TABLE match_records REPLICA IDENTITY FULL;
+ALTER TABLE score_entries REPLICA IDENTITY FULL;
+ALTER TABLE audit_logs REPLICA IDENTITY FULL;
+
+DO $$ 
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE categories, teams, participants, competitions, weeks, supervisors, match_records, score_entries, audit_logs;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END $$;
+
 -- SEED DATA INITIALIZATION
 INSERT INTO categories (id, name, description) VALUES 
     ('cat-cubs', 'الأشبال', 'فئة الأشبال (الصفوف الأولى)'),
