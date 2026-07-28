@@ -259,8 +259,24 @@ class DatabaseEngine {
         return items.find(item => item.id === id);
     }
 
+    // Role Permission Guard
+    checkWritePermission(key, action) {
+        if (typeof authService !== 'undefined' && authService.isLoggedIn()) {
+            if (authService.isSupervisor()) {
+                // Supervisor can ONLY insert new match records, score entries, and audit logs
+                if (action !== 'insert' || (key !== DB_KEYS.MATCH_RECORDS && key !== DB_KEYS.SCORE_ENTRIES && key !== DB_KEYS.AUDIT_LOGS)) {
+                    if (window.app) window.app.showToast('هذا الإجراء متاح فقط لمدير النظام.', 'error');
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     // Guaranteed Cloud & Local INSERT
     async insert(key, item) {
+        if (!this.checkWritePermission(key, 'insert')) return null;
+
         if (!item.id) {
             item.id = 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         }
@@ -302,6 +318,8 @@ class DatabaseEngine {
 
     // Guaranteed Cloud & Local UPDATE
     async update(key, id, updatedFields) {
+        if (!this.checkWritePermission(key, 'update')) return null;
+
         const items = this.getAll(key);
         const index = items.findIndex(item => item.id === id);
         if (index !== -1) {
@@ -329,6 +347,8 @@ class DatabaseEngine {
 
     // Guaranteed Cloud & Local DELETE
     async delete(key, id) {
+        if (!this.checkWritePermission(key, 'delete')) return false;
+
         const items = this.getAll(key).filter(item => item.id !== id);
         this.cache[key] = items;
         this.saveCollection(key, items);

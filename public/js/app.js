@@ -150,7 +150,7 @@ class App {
 
     switchView(viewId) {
         if (viewId === 'admin' && !authService.isAdmin()) {
-            this.showToast('عفواً، لوحة الإدارة مخصصة لمدير النظام فقط!', 'error');
+            this.showToast('هذا الإجراء متاح فقط لمدير النظام.', 'error');
             this.openLoginModal();
             return;
         }

@@ -97,8 +97,14 @@ export default function ReactApp() {
         setPenaltyReason('');
     };
 
+    const isAdmin = currentUser && currentUser.role === 'admin';
+
     // Edit Match Handler
     const handleEditMatch = (match) => {
+        if (!isAdmin) {
+            alert('هذا الإجراء متاح فقط لمدير النظام.');
+            return;
+        }
         setEditingMatchId(match.id);
         setSelectedCategory(match.category_id || '');
         setSelectedCompetition(match.competition_id || '');
@@ -130,8 +136,8 @@ export default function ReactApp() {
 
     // Delete Match Handler
     const handleDeleteMatch = async (matchId) => {
-        if (!currentUser) {
-            alert('يرجى تسجيل الدخول أولاً لتنفيذ الحذف!');
+        if (!isAdmin) {
+            alert('هذا الإجراء متاح فقط لمدير النظام.');
             return;
         }
 

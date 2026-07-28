@@ -223,6 +223,11 @@ class ScoringComponent {
         }
 
         const isEditing = !!this.editingMatchId;
+        if (isEditing && !authService.isAdmin()) {
+            app.showToast('هذا الإجراء متاح فقط لمدير النظام.', 'error');
+            return;
+        }
+
         const matchRecordId = isEditing ? this.editingMatchId : ('match_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4));
         const existingMatch = isEditing ? db.getById(DB_KEYS.MATCH_RECORDS, matchRecordId) : null;
 
@@ -346,6 +351,8 @@ class ScoringComponent {
     }
 
     editMatch(matchId) {
+        if (!authService.requireAdminPermission()) return;
+
         const match = db.getById(DB_KEYS.MATCH_RECORDS, matchId);
         if (!match) return;
 
@@ -432,6 +439,8 @@ class ScoringComponent {
     }
 
     async deleteMatch(matchId) {
+        if (!authService.requireAdminPermission()) return;
+
         const currentUser = authService.getCurrentUser();
         if (!currentUser) {
             app.showToast('يرجى تسجيل الدخول أولاً لتنفيذ الحذف!', 'error');
@@ -514,6 +523,7 @@ class ScoringComponent {
                     </div>
                     <div class="footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                         <span>رُصد بواسطة: ${supervisor}</span>
+                        ${authService.isAdmin() ? `
                         <div class="match-actions" style="display: flex; gap: 4px;">
                             <button class="btn-ghost icon-only" title="تعديل نتيجة المباراة" onclick="scoringComponent.editMatch('${m.id}')">
                                 <i data-lucide="edit-3"></i>
@@ -521,7 +531,7 @@ class ScoringComponent {
                             <button class="btn-ghost icon-only text-danger" title="حذف سجل المباراة" onclick="scoringComponent.deleteMatch('${m.id}')">
                                 <i data-lucide="trash-2"></i>
                             </button>
-                        </div>
+                        </div>` : ''}
                     </div>
                 </div>
             `;

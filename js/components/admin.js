@@ -280,10 +280,7 @@ class AdminComponent {
 
     /* ---------------- MODAL BUILDER & HANDLERS ---------------- */
     openEntityModal(type, entityId = null) {
-        if (!authService.isAdmin()) {
-            app.showToast('يتطلب هذا الإجراء صلاحيات مدير النظام!', 'error');
-            return;
-        }
+        if (!authService.requireAdminPermission()) return;
 
         this.editingType = type;
         this.editingId = entityId;
@@ -413,6 +410,8 @@ class AdminComponent {
     }
 
     async handleEntityFormSubmit() {
+        if (!authService.requireAdminPermission()) return;
+
         const type = this.editingType;
         const id = this.editingId;
         const currentUser = authService.getCurrentUser();
@@ -498,10 +497,7 @@ class AdminComponent {
     }
 
     async deleteEntity(type, id) {
-        if (!authService.isAdmin()) {
-            app.showToast('يتطلب هذا الإجراء صلاحيات مدير النظام!', 'error');
-            return;
-        }
+        if (!authService.requireAdminPermission()) return;
 
         if (confirm(`هل أنت تأكد من إرادتك لحذف هذا الـ (${this.getTypeLabel(type)})؟`)) {
             const keyMap = { participant: DB_KEYS.PARTICIPANTS, team: DB_KEYS.TEAMS, category: DB_KEYS.CATEGORIES, competition: DB_KEYS.COMPETITIONS, week: DB_KEYS.WEEKS, supervisor: DB_KEYS.SUPERVISORS };
