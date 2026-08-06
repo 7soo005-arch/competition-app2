@@ -44,10 +44,44 @@ class DatabaseEngine {
         this.cloudClient = null;
         this.realtimeChannel = null;
         this.syncInterval = null;
+        this.isInitialized = false;
         
-        this.initLocalCollections();
-        this.initCloudSync();
+        // Initialize empty cache keys
+        const keys = Object.keys(TABLE_MAP);
+        for (const key of keys) {
+            this.cache[key] = [];
+        }
+
         this.setupAutoSyncHooks();
+    }
+
+    // Explicit Async Database Initialization Sequence (Waits for Supabase Fetch Before UI Render)
+    async initDatabase() {
+        const url = localStorage.getItem('comp_supabase_url') || window.ENV_SUPABASE_URL || '';
+        const key = localStorage.getItem('comp_supabase_key') || window.ENV_SUPABASE_KEY || '';
+
+        if (url && key && window.supabase && typeof window.supabase.createClient === 'function') {
+            try {
+                this.cloudClient = window.supabase.createClient(url, key);
+                console.log('⚡ Connected to Supabase Cloud Database:', url);
+                
+                // 1. Fetch latest state from Supabase BEFORE rendering UI & BEFORE Realtime!
+                await this.pullAllTablesFromCloud();
+                
+                // 2. Start Realtime AFTER initial fetch completes
+                this.subscribeToRealtimeChanges();
+                
+                this.isInitialized = true;
+                return true;
+            } catch (e) {
+                console.error('Supabase initialization error:', e);
+            }
+        }
+
+        // Fallback to local collections if no Supabase connection
+        this.initLocalCollections();
+        this.isInitialized = true;
+        return false;
     }
 
     // Initialize Local Memory Cache
@@ -79,19 +113,7 @@ class DatabaseEngine {
 
     // Initialize Supabase Cloud Client & Connections
     initCloudSync() {
-        const url = localStorage.getItem('comp_supabase_url') || window.ENV_SUPABASE_URL || '';
-        const key = localStorage.getItem('comp_supabase_key') || window.ENV_SUPABASE_KEY || '';
-
-        if (url && key && window.supabase && typeof window.supabase.createClient === 'function') {
-            try {
-                this.cloudClient = window.supabase.createClient(url, key);
-                console.log('⚡ Connected to Supabase Cloud Database:', url);
-                this.pullAllTablesFromCloud();
-                this.subscribeToRealtimeChanges();
-            } catch (e) {
-                console.error('Supabase initialization error:', e);
-            }
-        }
+        this.initDatabase();
     }
 
     // Setup Resilient Hooks: 30s background sync, Visibility tab change, Online reconnect
@@ -225,13 +247,14 @@ class DatabaseEngine {
         }
     }
 
-    // Pull all tables from Supabase Cloud
+    // Pull all tables from Supabase Cloud concurrently
     async pullAllTablesFromCloud() {
         if (!this.cloudClient) return;
 
         const keys = Object.keys(TABLE_MAP);
         let hasData = false;
-        for (const key of keys) {
+
+        await Promise.all(keys.map(async (key) => {
             const tableName = TABLE_MAP[key];
             try {
                 const { data, error } = await this.cloudClient.from(tableName).select('*');
@@ -243,7 +266,7 @@ class DatabaseEngine {
             } catch (e) {
                 console.warn(`Failed to pull table ${tableName} from Supabase:`, e);
             }
-        }
+        }));
 
         if (!hasData || !this.cache[DB_KEYS.CATEGORIES] || this.cache[DB_KEYS.CATEGORIES].length === 0) {
             await this.seedSupabaseCloud();

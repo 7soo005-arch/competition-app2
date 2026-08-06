@@ -8,10 +8,31 @@ class App {
         this.init();
     }
 
-    init() {
+    async init() {
         this.bindEvents();
-        authService.updateUI();
-        leaderboardComponent.renderAll();
+        const loader = document.getElementById('app-initial-loader');
+
+        try {
+            if (window.db) {
+                await db.initDatabase();
+            }
+        } catch (e) {
+            console.error('Error during initial database load:', e);
+        } finally {
+            authService.updateUI();
+            if (window.scoringComponent) {
+                window.scoringComponent.populateDropdowns();
+                window.scoringComponent.renderRecentFeed();
+            }
+            if (window.leaderboardComponent) {
+                window.leaderboardComponent.renderAll();
+            }
+
+            if (loader) {
+                loader.classList.add('hidden');
+                setTimeout(() => { loader.style.display = 'none'; }, 450);
+            }
+        }
     }
 
     bindEvents() {
