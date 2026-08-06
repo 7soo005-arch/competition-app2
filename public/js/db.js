@@ -1,5 +1,5 @@
 /* ==========================================================================
-   COMPETITION MANAGEMENT SYSTEM - DUAL PERSISTENCE SUPABASE ENGINE (db.js)
+   COMPETITION MANAGEMENT SYSTEM - REALTIME SUPABASE ENGINE (db.js)
    ========================================================================== */
 
 const DB_KEYS = {
@@ -26,15 +26,31 @@ const TABLE_MAP = {
     [DB_KEYS.AUDIT_LOGS]: 'audit_logs'
 };
 
+const REVERSE_TABLE_MAP = {
+    'categories': DB_KEYS.CATEGORIES,
+    'teams': DB_KEYS.TEAMS,
+    'participants': DB_KEYS.PARTICIPANTS,
+    'competitions': DB_KEYS.COMPETITIONS,
+    'weeks': DB_KEYS.WEEKS,
+    'supervisors': DB_KEYS.SUPERVISORS,
+    'match_records': DB_KEYS.MATCH_RECORDS,
+    'score_entries': DB_KEYS.SCORE_ENTRIES,
+    'audit_logs': DB_KEYS.AUDIT_LOGS
+};
+
 class DatabaseEngine {
     constructor() {
         this.cache = {};
         this.cloudClient = null;
+        this.realtimeChannel = null;
+        this.syncInterval = null;
+        
         this.initLocalCollections();
         this.initCloudSync();
+        this.setupAutoSyncHooks();
     }
 
-    // Initialize Local Storage Collections (Secondary Persistence)
+    // Initialize Local Memory Cache
     initLocalCollections() {
         this.initDefaultSeed();
         const keys = Object.keys(TABLE_MAP);
@@ -43,7 +59,6 @@ class DatabaseEngine {
         }
     }
 
-    // Local Storage Helpers
     getCollection(key) {
         try {
             const data = localStorage.getItem(key);
@@ -62,7 +77,7 @@ class DatabaseEngine {
         }
     }
 
-    // Initialize Supabase Cloud Connection & Realtime Listeners
+    // Initialize Supabase Cloud Client & Connections
     initCloudSync() {
         const url = localStorage.getItem('comp_supabase_url') || window.ENV_SUPABASE_URL || '';
         const key = localStorage.getItem('comp_supabase_key') || window.ENV_SUPABASE_KEY || '';
@@ -79,48 +94,96 @@ class DatabaseEngine {
         }
     }
 
-    // Subscribe to Supabase Postgres Realtime Updates across all devices
+    // Setup Resilient Hooks: 30s background sync, Visibility tab change, Online reconnect
+    setupAutoSyncHooks() {
+        // 30-Second Background Synchronization Check (Fallback Sync)
+        if (this.syncInterval) clearInterval(this.syncInterval);
+        this.syncInterval = setInterval(() => {
+            console.log('⏰ 30s Fallback Sync Check triggered...');
+            this.pullAllTablesFromCloud();
+        }, 30000);
+
+        // Tab Active / Visibility Change Hook
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                console.log('👁️ Tab became visible -> Syncing latest Supabase data...');
+                this.pullAllTablesFromCloud();
+            }
+        });
+
+        // Window Focus Hook
+        window.addEventListener('focus', () => {
+            console.log('🔍 Window focused -> Refreshing data from Supabase...');
+            this.pullAllTablesFromCloud();
+        });
+
+        // Network Reconnection Hook
+        window.addEventListener('online', () => {
+            console.log('🌐 Network Connection restored -> Reconnecting Realtime & Syncing...');
+            if (window.app) window.app.showToast('تم استعادة الاتصال بالإنترنت - جاري المزامنة...', 'info');
+            this.initCloudSync();
+        });
+
+        window.addEventListener('offline', () => {
+            console.warn('⚠️ Network Connection Lost!');
+            if (window.app) window.app.showToast('انقطع الاتصال بالإنترنت - يتم العمل في الوضع المؤقت...', 'warning');
+        });
+    }
+
+    // Subscribe to Realtime Updates (INSERT, UPDATE, DELETE)
     subscribeToRealtimeChanges() {
         if (!this.cloudClient) return;
 
+        if (this.realtimeChannel) {
+            try { this.cloudClient.removeChannel(this.realtimeChannel); } catch(e){}
+        }
+
         try {
-            this.cloudClient
-                .channel('public-db-changes')
+            this.realtimeChannel = this.cloudClient
+                .channel('public-db-changes-' + Date.now())
                 .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-                    console.log('🔄 Realtime Cloud Event Received:', payload.eventType, payload.table, payload);
+                    console.log('🔄 Realtime Event Received:', payload.eventType, payload.table, payload);
                     
-                    const reverseMap = {
-                        'categories': DB_KEYS.CATEGORIES,
-                        'teams': DB_KEYS.TEAMS,
-                        'participants': DB_KEYS.PARTICIPANTS,
-                        'competitions': DB_KEYS.COMPETITIONS,
-                        'weeks': DB_KEYS.WEEKS,
-                        'supervisors': DB_KEYS.SUPERVISORS,
-                        'match_records': DB_KEYS.MATCH_RECORDS,
-                        'score_entries': DB_KEYS.SCORE_ENTRIES,
-                        'audit_logs': DB_KEYS.AUDIT_LOGS
-                    };
-
-                    const key = reverseMap[payload.table];
-
-                    if (payload.eventType === 'DELETE' && payload.old && payload.old.id) {
-                        const deletedId = payload.old.id;
-                        if (key && this.cache[key]) {
-                            this.cache[key] = this.cache[key].filter(item => item.id !== deletedId);
-                            this.saveCollection(key, this.cache[key]);
+                    const key = REVERSE_TABLE_MAP[payload.table];
+                    if (key) {
+                        if (payload.eventType === 'INSERT' && payload.new) {
+                            const items = this.cache[key] || [];
+                            const idx = items.findIndex(i => i.id === payload.new.id);
+                            if (idx !== -1) items[idx] = payload.new;
+                            else items.push(payload.new);
+                            this.cache[key] = items;
+                            this.saveCollection(key, items);
+                        } else if (payload.eventType === 'UPDATE' && payload.new) {
+                            const items = this.cache[key] || [];
+                            const idx = items.findIndex(i => i.id === payload.new.id);
+                            if (idx !== -1) items[idx] = payload.new;
+                            else items.push(payload.new);
+                            this.cache[key] = items;
+                            this.saveCollection(key, items);
+                        } else if (payload.eventType === 'DELETE' && payload.old && payload.old.id) {
+                            const deletedId = payload.old.id;
+                            if (this.cache[key]) {
+                                this.cache[key] = this.cache[key].filter(item => item.id !== deletedId);
+                                this.saveCollection(key, this.cache[key]);
+                            }
                         }
                     }
 
-                    // Re-pull all tables from cloud and refresh UI
+                    // Perform complete pull & refresh to guarantee absolute state consistency
                     await this.pullAllTablesFromCloud();
                 })
-                .subscribe();
+                .subscribe((status) => {
+                    console.log('⚡ Supabase Realtime Channel Status:', status);
+                    if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        console.warn('⚠️ Realtime Channel disconnected. Scheduling auto-reconnect...');
+                        setTimeout(() => this.initCloudSync(), 5000);
+                    }
+                });
         } catch (e) {
             console.warn('Realtime subscription error:', e);
         }
     }
 
-    // Set Credentials dynamically from Admin panel
     setSupabaseCredentials(url, key) {
         localStorage.setItem('comp_supabase_url', url.trim());
         localStorage.setItem('comp_supabase_key', key.trim());
@@ -129,7 +192,6 @@ class DatabaseEngine {
         this.initCloudSync();
     }
 
-    // Test Direct Supabase Cloud Database Insert & Select
     async testCloudConnection() {
         if (!this.cloudClient) {
             return { success: false, message: 'لم يتم تفعيل الربط بقواعد بيانات Supabase بعد (يرجى إدخال الرابط والمفتاح).' };
@@ -145,19 +207,16 @@ class DatabaseEngine {
                 timestamp: new Date().toISOString()
             };
 
-            // Live Insert to Supabase Cloud
             const { error: insertErr } = await this.cloudClient.from('audit_logs').insert([testLog]);
             if (insertErr) {
                 return { success: false, message: 'فشل الإدخال المباشر في Supabase: ' + insertErr.message };
             }
 
-            // Live Query from Supabase Cloud
             const { data, error: selectErr } = await this.cloudClient.from('audit_logs').select('*').eq('id', testId);
             if (selectErr || !data || data.length === 0) {
                 return { success: false, message: 'فشل الاستعلام المباشر من Supabase بعد الإدخال.' };
             }
 
-            // Clean up test log
             await this.cloudClient.from('audit_logs').delete().eq('id', testId);
 
             return { success: true, message: '⚡ تم الإدخال والاستعلام والحذف المباشر في قاعدة بيانات Supabase السحابية بنجاح بنسبة 100%!' };
@@ -166,7 +225,7 @@ class DatabaseEngine {
         }
     }
 
-    // Pull all tables from Supabase Cloud & sync to local cache
+    // Pull all tables from Supabase Cloud
     async pullAllTablesFromCloud() {
         if (!this.cloudClient) return;
 
@@ -176,39 +235,34 @@ class DatabaseEngine {
             const tableName = TABLE_MAP[key];
             try {
                 const { data, error } = await this.cloudClient.from(tableName).select('*');
-                if (!error && data && data.length > 0) {
+                if (!error && data) {
                     this.cache[key] = data;
                     this.saveCollection(key, data);
-                    hasData = true;
+                    if (data.length > 0) hasData = true;
                 }
             } catch (e) {
                 console.warn(`Failed to pull table ${tableName} from Supabase:`, e);
             }
         }
 
-        // If Supabase database is empty (no categories found), seed initial records to Supabase Cloud!
         if (!hasData || !this.cache[DB_KEYS.CATEGORIES] || this.cache[DB_KEYS.CATEGORIES].length === 0) {
             await this.seedSupabaseCloud();
         }
 
-        // Trigger UI Refreshes
         this.refreshAllComponents();
     }
 
-    // Auto-seed initial default records directly to Supabase Cloud
     async seedSupabaseCloud() {
         if (!this.cloudClient) return;
         console.log('🌱 Database is empty. Seeding initial records to Supabase Cloud...');
 
         try {
-            // 1. Categories
             const categories = [
                 { id: 'cat-cubs', name: 'الأشبال', description: 'فئة الأشبال (الصفوف الأولى)', created_at: new Date().toISOString() },
                 { id: 'cat-youths', name: 'الفتيان', description: 'فئة الفتيان (الصفوف العليا)', created_at: new Date().toISOString() }
             ];
             await this.cloudClient.from('categories').upsert(categories);
 
-            // 2. Teams
             const defaultTeams = [];
             for (let i = 1; i <= 10; i++) {
                 defaultTeams.push({ id: `team-cub-${i}`, name: `أشبال ${i}`, category_id: 'cat-cubs', color: '#3b82f6', created_at: new Date().toISOString() });
@@ -218,7 +272,6 @@ class DatabaseEngine {
             }
             await this.cloudClient.from('teams').upsert(defaultTeams);
 
-            // 3. Competitions
             const defaultCompetitions = [
                 { id: 'comp-1', name: 'حرّيف ( كرة قدم )', type: 'sports', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() },
                 { id: 'comp-2', name: 'ذهين ( ثقافي )', type: 'quiz', points_win: 3, points_draw: 1, points_loss: 0, created_at: new Date().toISOString() },
@@ -226,7 +279,6 @@ class DatabaseEngine {
             ];
             await this.cloudClient.from('competitions').upsert(defaultCompetitions);
 
-            // 4. Weeks
             const defaultWeeks = [
                 { id: 'week-1', name: 'الأسبوع الأول', is_active: false },
                 { id: 'week-2', name: 'الأسبوع الثاني', is_active: true },
@@ -237,15 +289,13 @@ class DatabaseEngine {
             ];
             await this.cloudClient.from('weeks').upsert(defaultWeeks);
 
-            // 5. Supervisors
             const defaultSupervisors = [
                 { id: 'sup-admin', name: 'مدير النظام الرئيسي', username: 'admin', password_hash: 'admin123', role: 'admin', created_at: new Date().toISOString() },
-                { id: 'sup-1', name: 'المشرف الأول', username: 'supervisor1', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() },
-                { id: 'sup-2', name: 'المشرف الثاني', username: 'supervisor2', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() }
+                { id: 'sup-1', name: 'المشرف أحمد علي', username: 'supervisor1', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() },
+                { id: 'sup-2', name: 'المشرف محمد العتيبي', username: 'supervisor2', password_hash: '123456', role: 'supervisor', created_at: new Date().toISOString() }
             ];
             await this.cloudClient.from('supervisors').upsert(defaultSupervisors);
 
-            // Re-pull updated records from Cloud
             const keys = Object.keys(TABLE_MAP);
             for (const key of keys) {
                 const tableName = TABLE_MAP[key];
@@ -270,7 +320,6 @@ class DatabaseEngine {
         if (window.adminComponent) window.adminComponent.renderCurrentTab();
     }
 
-    // Read Collections
     getAll(key) {
         if (!this.cache[key] || this.cache[key].length === 0) {
             this.cache[key] = this.getCollection(key);
@@ -283,11 +332,9 @@ class DatabaseEngine {
         return items.find(item => item.id === id);
     }
 
-    // Role Permission Guard
     checkWritePermission(key, action) {
         if (typeof authService !== 'undefined' && authService.isLoggedIn()) {
             if (authService.isSupervisor()) {
-                // Supervisor can ONLY insert new match records, score entries, and audit logs
                 if (action !== 'insert' || (key !== DB_KEYS.MATCH_RECORDS && key !== DB_KEYS.SCORE_ENTRIES && key !== DB_KEYS.AUDIT_LOGS)) {
                     if (window.app) window.app.showToast('هذا الإجراء متاح فقط لمدير النظام.', 'error');
                     return false;
@@ -297,16 +344,34 @@ class DatabaseEngine {
         return true;
     }
 
-    // Guaranteed Cloud & Local INSERT
+    // Guaranteed Cloud INSERT
     async insert(key, item) {
-        if (!this.checkWritePermission(key, 'insert')) return null;
+        if (!this.checkWritePermission(key, 'insert')) {
+            return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
+        }
 
         if (!item.id) {
             item.id = 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         }
         item.created_at = item.created_at || new Date().toISOString();
 
-        // 1. Update memory cache & local storage
+        if (this.cloudClient) {
+            const tableName = TABLE_MAP[key];
+            try {
+                const { data, error } = await this.cloudClient.from(tableName).insert([item]).select();
+                if (error) {
+                    console.error(`❌ Supabase Cloud insert error on ${tableName}:`, error);
+                    return { success: false, error: error.message || 'فشل الإدخال في Supabase' };
+                }
+                if (data && data[0]) {
+                    item = data[0];
+                }
+            } catch (e) {
+                console.error(`❌ Supabase Cloud insert exception on ${tableName}:`, e);
+                return { success: false, error: e.message || 'خطأ أثناء الاتصال بقاعدة بيانات Supabase' };
+            }
+        }
+
         const currentItems = this.getAll(key);
         const existingIdx = currentItems.findIndex(i => i.id === item.id);
         if (existingIdx !== -1) {
@@ -317,82 +382,72 @@ class DatabaseEngine {
         this.cache[key] = currentItems;
         this.saveCollection(key, currentItems);
 
-        // 2. Direct INSERT to Supabase Cloud
-        if (this.cloudClient) {
-            const tableName = TABLE_MAP[key];
-            try {
-                const { data, error } = await this.cloudClient.from(tableName).insert([item]).select();
-                if (error) {
-                    console.error(`Supabase cloud insert error on ${tableName}:`, error);
-                } else if (data && data[0]) {
-                    const idx = this.cache[key].findIndex(i => i.id === item.id);
-                    if (idx !== -1) {
-                        this.cache[key][idx] = data[0];
-                        this.saveCollection(key, this.cache[key]);
-                    }
-                }
-            } catch (e) {
-                console.error(`Supabase cloud insert exception on ${tableName}:`, e);
-            }
-        }
-
         this.refreshAllComponents();
-        return item;
+        return { success: true, data: item };
     }
 
-    // Guaranteed Cloud & Local UPDATE
+    // Guaranteed Cloud UPDATE
     async update(key, id, updatedFields) {
-        if (!this.checkWritePermission(key, 'update')) return null;
+        if (!this.checkWritePermission(key, 'update')) {
+            return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
+        }
 
         const items = this.getAll(key);
         const index = items.findIndex(item => item.id === id);
+
+        if (this.cloudClient) {
+            const tableName = TABLE_MAP[key];
+            try {
+                const { error } = await this.cloudClient.from(tableName).update(updatedFields).eq('id', id);
+                if (error) {
+                    console.error(`❌ Supabase Cloud update error on ${tableName}:`, error);
+                    return { success: false, error: error.message || 'فشل التعديل في Supabase' };
+                }
+            } catch (e) {
+                console.error(`❌ Supabase Cloud update exception on ${tableName}:`, e);
+                return { success: false, error: e.message || 'خطأ أثناء الاتصال بقاعدة بيانات Supabase' };
+            }
+        }
+
         if (index !== -1) {
             const updatedItem = { ...items[index], ...updatedFields, updated_at: new Date().toISOString() };
             items[index] = updatedItem;
             this.cache[key] = items;
             this.saveCollection(key, items);
-
-            // Direct UPDATE to Supabase Cloud
-            if (this.cloudClient) {
-                const tableName = TABLE_MAP[key];
-                try {
-                    const { error } = await this.cloudClient.from(tableName).update(updatedFields).eq('id', id);
-                    if (error) console.error(`Supabase cloud update error on ${tableName}:`, error);
-                } catch (e) {
-                    console.error(`Supabase cloud update exception on ${tableName}:`, e);
-                }
-            }
-
-            this.refreshAllComponents();
-            return updatedItem;
         }
-        return null;
+
+        this.refreshAllComponents();
+        return { success: true };
     }
 
-    // Guaranteed Cloud & Local DELETE
+    // Guaranteed Cloud DELETE
     async delete(key, id) {
-        if (!this.checkWritePermission(key, 'delete')) return false;
+        if (!this.checkWritePermission(key, 'delete')) {
+            return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
+        }
+
+        if (this.cloudClient) {
+            const tableName = TABLE_MAP[key];
+            try {
+                const { error } = await this.cloudClient.from(tableName).delete().eq('id', id);
+                if (error) {
+                    console.error(`❌ Supabase Cloud delete error on ${tableName}:`, error);
+                    return { success: false, error: error.message || 'فشل الحذف من Supabase' };
+                }
+            } catch (e) {
+                console.error(`❌ Supabase Cloud delete exception on ${tableName}:`, e);
+                return { success: false, error: e.message || 'خطأ أثناء الاتصال بقاعدة بيانات Supabase' };
+            }
+        }
 
         const items = this.getAll(key).filter(item => item.id !== id);
         this.cache[key] = items;
         this.saveCollection(key, items);
 
-        // Direct DELETE from Supabase Cloud
-        if (this.cloudClient) {
-            const tableName = TABLE_MAP[key];
-            try {
-                const { error } = await this.cloudClient.from(tableName).delete().eq('id', id);
-                if (error) console.error(`Supabase cloud delete error on ${tableName}:`, error);
-            } catch (e) {
-                console.error(`Supabase cloud delete exception on ${tableName}:`, e);
-            }
-        }
-
         this.refreshAllComponents();
-        return true;
+        return { success: true };
     }
 
-    // Initial Seed Setup
     initDefaultSeed() {
         if (!localStorage.getItem(DB_KEYS.CATEGORIES)) {
             const defaultCategories = [

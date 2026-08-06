@@ -190,6 +190,8 @@ class ScoringComponent {
     }
 
     async handleScoreSubmission() {
+        if (this.isSubmitting) return;
+
         const currentUser = authService.getCurrentUser();
         if (!currentUser) {
             app.showToast('يرجى تسجيل الدخول أولاً لتسجيل وسلسلة النقاط بحسابك!', 'error');
@@ -228,125 +230,150 @@ class ScoringComponent {
             return;
         }
 
-        const matchRecordId = isEditing ? this.editingMatchId : ('match_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4));
-        const existingMatch = isEditing ? db.getById(DB_KEYS.MATCH_RECORDS, matchRecordId) : null;
+        // 1. Show Saving State & Disable Button
+        this.isSubmitting = true;
+        if (this.btnSaveScore) {
+            this.btnSaveScore.disabled = true;
+            if (this.btnSaveScoreText) this.btnSaveScoreText.textContent = 'جاري الحفظ...';
+        }
+        app.showToast('جاري الحفظ...', 'info');
 
-        const matchRecord = {
-            id: matchRecordId,
-            category_id: categoryId,
-            competition_id: competitionId,
-            week_id: weekId,
-            team1_id: team1Id,
-            team2_id: team2Id,
-            team1_score: team1Goals,
-            team2_score: team2Goals,
-            winner_team_id: winnerTeamId,
-            is_draw: isDraw,
-            supervisor_id: currentUser.id,
-            created_at: existingMatch ? existingMatch.created_at : new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
+        try {
+            const matchRecordId = isEditing ? this.editingMatchId : ('match_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4));
+            const existingMatch = isEditing ? db.getById(DB_KEYS.MATCH_RECORDS, matchRecordId) : null;
 
-        if (isEditing) {
-            await db.update(DB_KEYS.MATCH_RECORDS, matchRecordId, matchRecord);
-            let oldEntries = db.getAll(DB_KEYS.SCORE_ENTRIES).filter(e => e.match_id === matchRecordId);
-            for (const entry of oldEntries) {
-                await db.delete(DB_KEYS.SCORE_ENTRIES, entry.id);
+            const matchRecord = {
+                id: matchRecordId,
+                category_id: categoryId,
+                competition_id: competitionId,
+                week_id: weekId,
+                team1_id: team1Id,
+                team2_id: team2Id,
+                team1_score: team1Goals,
+                team2_score: team2Goals,
+                winner_team_id: winnerTeamId,
+                is_draw: isDraw,
+                supervisor_id: currentUser.id,
+                created_at: existingMatch ? existingMatch.created_at : new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            let res;
+            if (isEditing) {
+                res = await db.update(DB_KEYS.MATCH_RECORDS, matchRecordId, matchRecord);
+                if (res && res.success) {
+                    let oldEntries = db.getAll(DB_KEYS.SCORE_ENTRIES).filter(e => e.match_id === matchRecordId);
+                    for (const entry of oldEntries) {
+                        await db.delete(DB_KEYS.SCORE_ENTRIES, entry.id);
+                    }
+                }
+            } else {
+                res = await db.insert(DB_KEYS.MATCH_RECORDS, matchRecord);
             }
-        } else {
-            await db.insert(DB_KEYS.MATCH_RECORDS, matchRecord);
-        }
 
-        // Record Individual Awards & Penalties
-        const bestPlayerId = this.bestPlayerSelect?.value;
-        if (bestPlayerId) {
-            await db.insert(DB_KEYS.SCORE_ENTRIES, {
-                match_id: matchRecord.id,
-                participant_id: bestPlayerId,
-                entry_type: 'best_player',
-                points_change: 5,
-                supervisor_id: currentUser.id,
-                created_at: new Date().toISOString()
-            });
-        }
+            if (!res || !res.success) {
+                throw new Error(res?.error || 'فشل الإدخال في قاعدة البيانات');
+            }
 
-        const topScorerId = this.topScorerSelect?.value;
-        if (topScorerId) {
-            await db.insert(DB_KEYS.SCORE_ENTRIES, {
-                match_id: matchRecord.id,
-                participant_id: topScorerId,
-                entry_type: 'top_scorer',
-                points_change: 3,
-                supervisor_id: currentUser.id,
-                created_at: new Date().toISOString()
-            });
-        }
+            // Record Individual Awards & Penalties
+            const bestPlayerId = this.bestPlayerSelect?.value;
+            if (bestPlayerId) {
+                await db.insert(DB_KEYS.SCORE_ENTRIES, {
+                    match_id: matchRecord.id,
+                    participant_id: bestPlayerId,
+                    entry_type: 'best_player',
+                    points_change: 5,
+                    supervisor_id: currentUser.id,
+                    created_at: new Date().toISOString()
+                });
+            }
 
-        const bestGkId = this.bestGkSelect?.value;
-        if (bestGkId) {
-            await db.insert(DB_KEYS.SCORE_ENTRIES, {
-                match_id: matchRecord.id,
-                participant_id: bestGkId,
-                entry_type: 'best_goalkeeper',
-                points_change: 3,
-                supervisor_id: currentUser.id,
-                created_at: new Date().toISOString()
-            });
-        }
+            const topScorerId = this.topScorerSelect?.value;
+            if (topScorerId) {
+                await db.insert(DB_KEYS.SCORE_ENTRIES, {
+                    match_id: matchRecord.id,
+                    participant_id: topScorerId,
+                    entry_type: 'top_scorer',
+                    points_change: 3,
+                    supervisor_id: currentUser.id,
+                    created_at: new Date().toISOString()
+                });
+            }
 
-        const idealPlayerId = this.idealPlayerSelect?.value;
-        if (idealPlayerId) {
-            await db.insert(DB_KEYS.SCORE_ENTRIES, {
-                match_id: matchRecord.id,
-                participant_id: idealPlayerId,
-                entry_type: 'ideal_player',
-                points_change: 3,
-                supervisor_id: currentUser.id,
-                created_at: new Date().toISOString()
-            });
-        }
+            const bestGkId = this.bestGkSelect?.value;
+            if (bestGkId) {
+                await db.insert(DB_KEYS.SCORE_ENTRIES, {
+                    match_id: matchRecord.id,
+                    participant_id: bestGkId,
+                    entry_type: 'best_goalkeeper',
+                    points_change: 3,
+                    supervisor_id: currentUser.id,
+                    created_at: new Date().toISOString()
+                });
+            }
 
-        const penaltyPlayerId = this.penaltyPlayerSelect?.value;
-        const penaltyPoints = parseInt(this.penaltyPointsInput?.value) || 0;
-        const penaltyReason = this.penaltyReasonInput?.value?.trim() || '';
+            const idealPlayerId = this.idealPlayerSelect?.value;
+            if (idealPlayerId) {
+                await db.insert(DB_KEYS.SCORE_ENTRIES, {
+                    match_id: matchRecord.id,
+                    participant_id: idealPlayerId,
+                    entry_type: 'ideal_player',
+                    points_change: 3,
+                    supervisor_id: currentUser.id,
+                    created_at: new Date().toISOString()
+                });
+            }
 
-        if (penaltyPlayerId && penaltyPoints > 0) {
-            await db.insert(DB_KEYS.SCORE_ENTRIES, {
-                match_id: matchRecord.id,
-                participant_id: penaltyPlayerId,
-                entry_type: 'penalty',
-                points_change: -Math.abs(penaltyPoints),
-                reason_notes: penaltyReason || 'خصم سلوكي / فني',
-                supervisor_id: currentUser.id,
-                created_at: new Date().toISOString()
-            });
-        }
+            const penaltyPlayerId = this.penaltyPlayerSelect?.value;
+            const penaltyPoints = parseInt(this.penaltyPointsInput?.value) || 0;
+            const penaltyReason = this.penaltyReasonInput?.value?.trim() || '';
 
-        // Audit Logging
-        const teams = db.getAll(DB_KEYS.TEAMS);
-        const t1 = teams.find(t => t.id === team1Id)?.name || 'الفريق الأول';
-        const t2 = teams.find(t => t.id === team2Id)?.name || 'الفريق الثاني';
-        const actionName = isEditing ? 'تعديل مباراة' : 'إدخال مباراة';
-        const logDetail = isEditing 
-            ? `قام المشرف ${currentUser.name} بتعديل بيانات مباراة (${t1} ${team1Goals} - ${team2Goals} ${t2})`
-            : `تم رصد مباراة (${t1} ${team1Goals} - ${team2Goals} ${t2}) بواسطة المشرف ${currentUser.name}`;
+            if (penaltyPlayerId && penaltyPoints > 0) {
+                await db.insert(DB_KEYS.SCORE_ENTRIES, {
+                    match_id: matchRecord.id,
+                    participant_id: penaltyPlayerId,
+                    entry_type: 'penalty',
+                    points_change: -Math.abs(penaltyPoints),
+                    reason_notes: penaltyReason || 'خصم سلوكي / فني',
+                    supervisor_id: currentUser.id,
+                    created_at: new Date().toISOString()
+                });
+            }
 
-        await auditService.log(currentUser.id, actionName, logDetail);
+            // Audit Logging
+            const teams = db.getAll(DB_KEYS.TEAMS);
+            const t1 = teams.find(t => t.id === team1Id)?.name || 'الفريق الأول';
+            const t2 = teams.find(t => t.id === team2Id)?.name || 'الفريق الثاني';
+            const actionName = isEditing ? 'تعديل مباراة' : 'إدخال مباراة';
+            const logDetail = isEditing 
+                ? `قام المشرف ${currentUser.name} بتعديل بيانات مباراة (${t1} ${team1Goals} - ${team2Goals} ${t2})`
+                : `تم رصد مباراة (${t1} ${team1Goals} - ${team2Goals} ${t2}) بواسطة المشرف ${currentUser.name}`;
 
-        app.showToast(isEditing ? 'تم تحديث بيانات المباراة وتعديل النقاط والترتيب بنجاح!' : 'تم حفظ نتيجة المباراة والجوائز بنجاح!', 'success');
+            await auditService.log(currentUser.id, actionName, logDetail);
 
-        this.cancelEdit();
+            // 2. Show Success State
+            app.showToast('تم الحفظ بنجاح', 'success');
 
-        // Refresh feed & leaderboards & analytics & admin audit
-        this.renderRecentFeed();
-        if (window.leaderboardComponent) {
-            window.leaderboardComponent.renderAll();
-        }
-        if (window.analyticsComponent) {
-            window.analyticsComponent.renderCharts();
-        }
-        if (window.adminComponent) {
-            window.adminComponent.renderCurrentTab();
+            this.cancelEdit();
+
+            // Refresh feed & leaderboards & analytics & admin audit
+            this.renderRecentFeed();
+            if (window.leaderboardComponent) window.leaderboardComponent.renderAll();
+            if (window.analyticsComponent) window.analyticsComponent.renderCharts();
+            if (window.adminComponent) window.adminComponent.renderCurrentTab();
+
+        } catch (error) {
+            console.error('❌ Score submission failed:', error);
+            // 3. Show Error State
+            app.showToast('فشل الحفظ. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            this.isSubmitting = false;
+            if (this.btnSaveScore) {
+                this.btnSaveScore.disabled = false;
+                if (this.btnSaveScoreText) {
+                    this.btnSaveScoreText.textContent = isEditing ? 'تحديث وتعديل نتيجة المباراة' : 'اعتماد وتسجيل نقاط المباراة';
+                }
+            }
         }
     }
 

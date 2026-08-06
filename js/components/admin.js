@@ -410,86 +410,111 @@ class AdminComponent {
     }
 
     async handleEntityFormSubmit() {
+        if (this.isSubmitting) return;
         if (!authService.requireAdminPermission()) return;
 
-        const type = this.editingType;
-        const id = this.editingId;
-        const currentUser = authService.getCurrentUser();
+        const submitBtn = document.querySelector('#entity-form button[type="submit"]');
+        const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
 
-        let data = {};
-        if (type === 'participant') {
-            const teamId = document.getElementById('m-part-team').value;
-            const team = db.getById(DB_KEYS.TEAMS, teamId);
-            data = {
-                full_name: document.getElementById('m-part-name').value.trim(),
-                team_id: teamId,
-                category_id: team ? team.category_id : null
-            };
-            if (id) await db.update(DB_KEYS.PARTICIPANTS, id, data);
-            else await db.insert(DB_KEYS.PARTICIPANTS, data);
+        this.isSubmitting = true;
+        if (submitBtn) submitBtn.disabled = true;
+        app.showToast('جاري الحفظ...', 'info');
 
-        } else if (type === 'team') {
-            data = {
-                name: document.getElementById('m-team-name').value.trim(),
-                category_id: document.getElementById('m-team-category').value,
-                color: document.getElementById('m-team-color').value
-            };
-            if (id) await db.update(DB_KEYS.TEAMS, id, data);
-            else await db.insert(DB_KEYS.TEAMS, data);
+        try {
+            const type = this.editingType;
+            const id = this.editingId;
+            const currentUser = authService.getCurrentUser();
 
-        } else if (type === 'category') {
-            data = {
-                name: document.getElementById('m-cat-name').value.trim(),
-                description: document.getElementById('m-cat-desc').value.trim()
-            };
-            if (id) await db.update(DB_KEYS.CATEGORIES, id, data);
-            else await db.insert(DB_KEYS.CATEGORIES, data);
+            let data = {};
+            let res = { success: true };
 
-        } else if (type === 'competition') {
-            data = {
-                name: document.getElementById('m-comp-name').value.trim(),
-                points_win: parseInt(document.getElementById('m-comp-win').value) || 3,
-                points_draw: parseInt(document.getElementById('m-comp-draw').value) || 1,
-                points_loss: 0
-            };
-            if (id) await db.update(DB_KEYS.COMPETITIONS, id, data);
-            else await db.insert(DB_KEYS.COMPETITIONS, data);
+            if (type === 'participant') {
+                const teamId = document.getElementById('m-part-team').value;
+                const team = db.getById(DB_KEYS.TEAMS, teamId);
+                data = {
+                    full_name: document.getElementById('m-part-name').value.trim(),
+                    team_id: teamId,
+                    category_id: team ? team.category_id : null
+                };
+                if (id) res = await db.update(DB_KEYS.PARTICIPANTS, id, data);
+                else res = await db.insert(DB_KEYS.PARTICIPANTS, data);
 
-        } else if (type === 'week') {
-            const isActive = document.getElementById('m-week-active').checked;
-            data = {
-                name: document.getElementById('m-week-name').value.trim(),
-                is_active: isActive
-            };
-            if (isActive) {
-                // reset other active weeks
-                const weeks = db.getAll(DB_KEYS.WEEKS);
-                for (const w of weeks) {
-                    await db.update(DB_KEYS.WEEKS, w.id, { is_active: false });
+            } else if (type === 'team') {
+                data = {
+                    name: document.getElementById('m-team-name').value.trim(),
+                    category_id: document.getElementById('m-team-category').value,
+                    color: document.getElementById('m-team-color').value
+                };
+                if (id) res = await db.update(DB_KEYS.TEAMS, id, data);
+                else res = await db.insert(DB_KEYS.TEAMS, data);
+
+            } else if (type === 'category') {
+                data = {
+                    name: document.getElementById('m-cat-name').value.trim(),
+                    description: document.getElementById('m-cat-desc').value.trim()
+                };
+                if (id) res = await db.update(DB_KEYS.CATEGORIES, id, data);
+                else res = await db.insert(DB_KEYS.CATEGORIES, data);
+
+            } else if (type === 'competition') {
+                data = {
+                    name: document.getElementById('m-comp-name').value.trim(),
+                    points_win: parseInt(document.getElementById('m-comp-win').value) || 3,
+                    points_draw: parseInt(document.getElementById('m-comp-draw').value) || 1,
+                    points_loss: 0
+                };
+                if (id) res = await db.update(DB_KEYS.COMPETITIONS, id, data);
+                else res = await db.insert(DB_KEYS.COMPETITIONS, data);
+
+            } else if (type === 'week') {
+                const isActive = document.getElementById('m-week-active').checked;
+                data = {
+                    name: document.getElementById('m-week-name').value.trim(),
+                    is_active: isActive
+                };
+                if (isActive) {
+                    const weeks = db.getAll(DB_KEYS.WEEKS);
+                    for (const w of weeks) {
+                        await db.update(DB_KEYS.WEEKS, w.id, { is_active: false });
+                    }
                 }
+                if (id) res = await db.update(DB_KEYS.WEEKS, id, data);
+                else res = await db.insert(DB_KEYS.WEEKS, data);
+
+            } else if (type === 'supervisor') {
+                data = {
+                    name: document.getElementById('m-sup-name').value.trim(),
+                    username: document.getElementById('m-sup-username').value.trim(),
+                    password_hash: document.getElementById('m-sup-password').value,
+                    role: document.getElementById('m-sup-role').value
+                };
+                if (id) res = await db.update(DB_KEYS.SUPERVISORS, id, data);
+                else res = await db.insert(DB_KEYS.SUPERVISORS, data);
             }
-            if (id) await db.update(DB_KEYS.WEEKS, id, data);
-            else await db.insert(DB_KEYS.WEEKS, data);
 
-        } else if (type === 'supervisor') {
-            data = {
-                name: document.getElementById('m-sup-name').value.trim(),
-                username: document.getElementById('m-sup-username').value.trim(),
-                password_hash: document.getElementById('m-sup-password').value,
-                role: document.getElementById('m-sup-role').value
-            };
-            if (id) await db.update(DB_KEYS.SUPERVISORS, id, data);
-            else await db.insert(DB_KEYS.SUPERVISORS, data);
+            if (!res || !res.success) {
+                throw new Error(res?.error || 'فشل حفظ البيانات في قاعدة البيانات');
+            }
+
+            await auditService.log(currentUser.id, id ? 'تعديل عنصر' : 'إضافة عنصر', `تم ${id ? 'تعديل' : 'إضافة'} ${this.getTypeLabel(type)}: ${data.name || data.full_name}`);
+
+            app.showToast('تم الحفظ بنجاح', 'success');
+            document.getElementById('entity-modal').style.display = 'none';
+
+            this.renderCurrentTab();
+            if (window.scoringComponent) window.scoringComponent.populateDropdowns();
+            if (window.leaderboardComponent) window.leaderboardComponent.renderAll();
+
+        } catch (error) {
+            console.error('❌ Entity save failed:', error);
+            app.showToast('فشل الحفظ. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            this.isSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
         }
-
-        await auditService.log(currentUser.id, id ? 'تعديل عنصر' : 'إضافة عنصر', `تم ${id ? 'تعديل' : 'إضافة'} ${this.getTypeLabel(type)}: ${data.name || data.full_name}`);
-
-        app.showToast('تم حفظ التغييرات بنجاح!', 'success');
-        document.getElementById('entity-modal').style.display = 'none';
-
-        this.renderCurrentTab();
-        if (window.scoringComponent) window.scoringComponent.populateDropdowns();
-        if (window.leaderboardComponent) window.leaderboardComponent.renderAll();
     }
 
     editEntity(type, id) {
