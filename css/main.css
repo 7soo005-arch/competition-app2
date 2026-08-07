@@ -3,34 +3,46 @@
    ========================================================================== */
 
 :root {
-    /* Color Palette */
-    --bg-dark: #0f172a;
-    --bg-card: rgba(30, 41, 59, 0.75);
-    --bg-card-hover: rgba(30, 41, 59, 0.9);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --border-accent: rgba(59, 130, 246, 0.4);
+    /* Color Palette - Bare (بارع) Identity */
+    --bare-turquoise: #00BDB0;
+    --bare-turquoise-hover: #00A398;
+    --bare-turquoise-light: rgba(0, 189, 176, 0.12);
 
-    --primary: #3b82f6;
-    --primary-hover: #2563eb;
-    --primary-light: rgba(59, 130, 246, 0.15);
+    --bare-yellow: #FFB800;
+    --bare-yellow-hover: #E6A600;
+    --bare-yellow-light: rgba(255, 184, 0, 0.15);
 
-    --accent: #8b5cf6;
-    --accent-glow: rgba(139, 92, 246, 0.35);
+    --bare-magenta: #E60067;
+    --bare-magenta-hover: #CC005B;
+    --bare-magenta-light: rgba(230, 0, 103, 0.12);
 
-    --success: #10b981;
+    --bg-dark: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F1F5F9;
+    --border-color: #E2E8F0;
+    --border-accent: rgba(0, 189, 176, 0.4);
+
+    --primary: var(--bare-turquoise);
+    --primary-hover: var(--bare-turquoise-hover);
+    --primary-light: var(--bare-turquoise-light);
+
+    --accent: var(--bare-magenta);
+    --accent-glow: rgba(230, 0, 103, 0.25);
+
+    --success: #10B981;
     --success-hover: #059669;
-    --success-light: rgba(16, 185, 129, 0.15);
+    --success-light: rgba(16, 185, 129, 0.12);
 
-    --warning: #f59e0b;
-    --warning-light: rgba(245, 158, 11, 0.15);
+    --warning: var(--bare-yellow);
+    --warning-light: var(--bare-yellow-light);
 
-    --danger: #ef4444;
-    --danger-hover: #dc2626;
-    --danger-light: rgba(239, 68, 68, 0.15);
+    --danger: #EF4444;
+    --danger-hover: #DC2626;
+    --danger-light: rgba(239, 68, 68, 0.12);
 
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
 
     /* Spacing & Radii */
     --radius-sm: 8px;
@@ -38,8 +50,8 @@
     --radius-lg: 20px;
 
     /* Shadow & Glass */
-    --glass-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    --glass-backdrop: blur(16px) saturate(180%);
+    --glass-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+    --glass-backdrop: blur(12px);
 
     /* Transitions */
     --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -55,17 +67,13 @@
 }
 
 body {
-    background-color: var(--bg-dark);
+    background-color: #F8FAFC;
     color: var(--text-primary);
     min-height: 100vh;
     direction: rtl;
     text-align: right;
     line-height: 1.6;
     overflow-x: hidden;
-    background-image: 
-        radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.12) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.12) 0%, transparent 40%);
-    background-attachment: fixed;
 }
 
 /* App Header */
@@ -73,14 +81,15 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: var(--glass-backdrop);
+    background: #FFFFFF;
     border-bottom: 1px solid var(--border-color);
     padding: 12px 24px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
 }
 
 .header-container {
-    max-width: 1440px;
+    width: 100%;
+    max-width: 1320px;
     margin: 0 auto;
     display: flex;
     align-items: center;
@@ -97,21 +106,25 @@ body {
 .logo-icon {
     width: 44px;
     height: 44px;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    background: var(--bare-turquoise-light);
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
-    box-shadow: 0 4px 15px var(--accent-glow);
+    color: var(--bare-turquoise);
+}
+
+.brand-logo-img {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    object-fit: cover;
 }
 
 .brand-text h1 {
     font-size: 1.25rem;
     font-weight: 800;
-    background: linear-gradient(135deg, #fff, #93c5fd);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--bare-turquoise);
 }
 
 .brand-text .sub-title {
@@ -125,7 +138,7 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(30, 41, 59, 0.5);
+    background: #F1F5F9;
     padding: 4px;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
@@ -138,7 +151,7 @@ body {
     padding: 8px 16px;
     border-radius: var(--radius-sm);
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -147,14 +160,14 @@ body {
 }
 
 .nav-btn:hover {
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.05);
+    color: var(--bare-turquoise);
+    background: rgba(255, 255, 255, 0.6);
 }
 
 .nav-btn.active {
-    background: var(--primary);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    background: #FFFFFF;
+    color: var(--bare-turquoise);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
 }
 
 .nav-btn i {
@@ -173,7 +186,7 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: rgba(30, 41, 59, 0.8);
+    background: #F1F5F9;
     padding: 6px 14px;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
@@ -198,11 +211,12 @@ body {
 .user-details .name {
     font-size: 0.85rem;
     font-weight: 700;
+    color: var(--text-primary);
 }
 
 .user-details .role-badge {
     font-size: 0.65rem;
-    color: var(--accent);
+    color: var(--bare-magenta);
     font-weight: 700;
 }
 
@@ -223,9 +237,11 @@ body {
 
 /* App Body Layout */
 .app-body {
-    max-width: 1440px;
+    width: 100%;
+    max-width: 1320px;
     margin: 0 auto;
-    padding: 24px;
+    padding: 28px 24px;
+    box-sizing: border-box;
 }
 
 .app-view {
@@ -253,12 +269,12 @@ body {
 }
 
 .title-group h2 {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 800;
     display: flex;
     align-items: center;
     gap: 10px;
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .title-group .desc {
