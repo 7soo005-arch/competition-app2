@@ -355,6 +355,20 @@ class DatabaseEngine {
         return items.find(item => item.id === id);
     }
 
+    // Role-based Write Permission Validation
+    checkWritePermission(key, action) {
+        if (typeof authService !== 'undefined' && authService.isLoggedIn()) {
+            if (authService.isSupervisor()) {
+                // Supervisors are permitted to INSERT match records, score entries, and audit logs
+                if (action !== 'insert' || (key !== DB_KEYS.MATCH_RECORDS && key !== DB_KEYS.SCORE_ENTRIES && key !== DB_KEYS.AUDIT_LOGS)) {
+                    if (window.app) window.app.showToast('هذا الإجراء متاح فقط لمدير النظام.', 'error');
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     // Helper to sanitize items before cloud operations (prevents foreign key constraint errors)
     sanitizeItemForCloud(key, item) {
         const sanitized = { ...item };
