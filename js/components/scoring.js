@@ -45,39 +45,61 @@ class ScoringComponent {
         this.populateDropdowns();
 
         // On Category change -> Filter Teams & Participants
-        this.categorySelect.addEventListener('change', () => {
-            const catId = this.categorySelect.value;
-            this.populateTeams(catId);
-            this.populateMatchPlayers();
-        });
+        if (this.categorySelect) {
+            this.categorySelect.addEventListener('change', () => {
+                const catId = this.categorySelect.value;
+                this.populateTeams(catId);
+                this.populateMatchPlayers();
+            });
+        }
 
         // On Teams change -> Update winner label text & match players
-        this.team1Select.addEventListener('change', () => {
-            this.updateWinnerLabels();
-            this.populateMatchPlayers();
-        });
-        this.team2Select.addEventListener('change', () => {
-            this.updateWinnerLabels();
-            this.populateMatchPlayers();
-        });
+        if (this.team1Select) {
+            this.team1Select.addEventListener('change', () => {
+                this.updateWinnerLabels();
+                this.populateMatchPlayers();
+            });
+        }
+        if (this.team2Select) {
+            this.team2Select.addEventListener('change', () => {
+                this.updateWinnerLabels();
+                this.populateMatchPlayers();
+            });
+        }
 
-        // On Score Goals Change -> auto calculate draw or winner
-        this.team1GoalsInput.addEventListener('input', () => this.autoDetectWinner());
-        this.team2GoalsInput.addEventListener('input', () => this.autoDetectWinner());
+        // On Score Goals Change -> auto calculate draw or winner (if inputs exist)
+        if (this.team1GoalsInput) {
+            this.team1GoalsInput.addEventListener('input', () => this.autoDetectWinner());
+        }
+        if (this.team2GoalsInput) {
+            this.team2GoalsInput.addEventListener('input', () => this.autoDetectWinner());
+        }
 
         // On Draw Checkbox change
-        this.isDrawCheckbox.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                const drawRadio = this.form.querySelector('input[name="match-winner"][value="draw"]');
-                if (drawRadio) drawRadio.checked = true;
-            }
-        });
+        if (this.isDrawCheckbox) {
+            this.isDrawCheckbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    const drawRadio = this.form ? this.form.querySelector('input[name="match-winner"][value="draw"]') : null;
+                    if (drawRadio) drawRadio.checked = true;
+                }
+            });
+        }
 
-        // Form Submit
-        this.form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleScoreSubmission();
-        });
+        // Form Submit Event Handler (Prevents Page Reload!)
+        if (this.form) {
+            this.form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleScoreSubmission();
+            });
+        }
+
+        // Save Score Button Direct Click Handler (Prevents Page Reload!)
+        if (this.btnSaveScore) {
+            this.btnSaveScore.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleScoreSubmission();
+            });
+        }
 
         // Cancel Edit Button
         if (this.btnCancelEdit) {
