@@ -186,32 +186,93 @@
     padding: 0 12px;
 }
 
-/* Match Teams Scoring Box */
+/* Match Teams Scoring Box & Distinct Team ID Cards */
 .match-teams-selector {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     gap: 20px;
     align-items: center;
     background: #F8FAFC;
-    padding: 18px;
-    border-radius: var(--radius-md);
+    padding: 20px;
+    border-radius: 20px;
     border: 1px solid var(--border-color);
 }
 
 .team-box {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
+    padding: 18px;
+    border-radius: 16px;
+    transition: var(--transition-fast);
 }
 
+/* Team 1 ID Card - Distinct Teal Theme (#00BDB0) */
+.team-1-box {
+    background: rgba(0, 189, 176, 0.06);
+    border: 1.5px solid rgba(0, 189, 176, 0.35);
+    border-top: 4px solid var(--bare-turquoise);
+    box-shadow: 0 4px 15px rgba(0, 189, 176, 0.08);
+}
+
+.team-1-box label {
+    color: var(--bare-turquoise);
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.team-1-box label i {
+    color: var(--bare-turquoise);
+}
+
+.team-1-box .form-control:focus {
+    border-color: var(--bare-turquoise);
+    box-shadow: 0 0 0 3px rgba(0, 189, 176, 0.25);
+}
+
+/* Team 2 ID Card - Distinct Warm Gold/Yellow Theme (#FFB800) */
+.team-2-box {
+    background: rgba(255, 184, 0, 0.07);
+    border: 1.5px solid rgba(255, 184, 0, 0.4);
+    border-top: 4px solid var(--bare-yellow);
+    box-shadow: 0 4px 15px rgba(255, 184, 0, 0.08);
+}
+
+.team-2-box label {
+    color: #D97706;
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.team-2-box label i {
+    color: var(--bare-yellow);
+}
+
+.team-2-box .form-control:focus {
+    border-color: var(--bare-yellow);
+    box-shadow: 0 0 0 3px rgba(255, 184, 0, 0.25);
+}
+
+/* Versus Center Badge (Magenta #E60067) */
 .versus-divider {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
+}
+
+.versus-divider span {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--bare-magenta) 0%, #CC005B 100%);
+    color: #FFFFFF;
     font-weight: 900;
-    font-size: 1.2rem;
-    color: var(--accent);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(230, 0, 103, 0.35);
 }
 
 .draw-checkbox-wrapper {
@@ -219,10 +280,11 @@
     align-items: center;
     gap: 6px;
     font-size: 0.85rem;
+    font-weight: 700;
     color: var(--text-secondary);
 }
 
-/* Radio Tiles for Winner Selection */
+/* Result Option Radio Tiles - Clear Color Identification */
 .radio-tiles {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -239,22 +301,39 @@
 
 .tile-content {
     display: block;
-    padding: 12px;
+    padding: 14px 10px;
     text-align: center;
     background: #FFFFFF;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-    font-weight: 700;
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 0.92rem;
+    font-weight: 800;
     color: var(--text-secondary);
     transition: var(--transition-fast);
 }
 
-.tile-option input:checked + .tile-content {
-    background: var(--bare-turquoise-light);
-    border-color: var(--bare-turquoise);
-    color: var(--bare-turquoise);
-    box-shadow: 0 2px 8px rgba(0, 189, 176, 0.15);
+/* Option 1: Team 1 Wins (Teal #00BDB0) */
+.tile-option input[value="team1"]:checked + .tile-content {
+    background: linear-gradient(135deg, #00BDB0 0%, #009688 100%);
+    border-color: #00BDB0;
+    color: #FFFFFF;
+    box-shadow: 0 4px 14px rgba(0, 189, 176, 0.35);
+}
+
+/* Option 2: Draw (Purple #8B5CF6) */
+.tile-option input[value="draw"]:checked + .tile-content {
+    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+    border-color: #8B5CF6;
+    color: #FFFFFF;
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+}
+
+/* Option 3: Team 2 Wins (Warm Gold #FFB800) */
+.tile-option input[value="team2"]:checked + .tile-content {
+    background: linear-gradient(135deg, #FFB800 0%, #F59E0B 100%);
+    border-color: #FFB800;
+    color: #FFFFFF;
+    box-shadow: 0 4px 14px rgba(255, 184, 0, 0.35);
 }
 
 /* Scoring Layout Grid */
