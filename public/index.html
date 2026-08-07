@@ -97,6 +97,10 @@
                     <i data-lucide="settings"></i>
                     <span>لوحة الإدارة</span>
                 </button>
+                <button class="nav-btn" data-view="schedule" id="nav-schedule-btn">
+                    <i data-lucide="calendar"></i>
+                    <span>جدول المباريات والتنظيم</span>
+                </button>
                 <button class="nav-btn" data-view="excel">
                     <i data-lucide="file-spreadsheet"></i>
                     <span>تقارير إكسل</span>
@@ -709,6 +713,104 @@
                     </form>
                 </div>
             </div>
+        <!-- View 6: Match Schedule Builder (جدول المباريات والتنظيم) -->
+        <section id="view-schedule" class="app-view">
+            <div class="page-header">
+                <div class="title-group">
+                    <h2><i data-lucide="calendar"></i> جدول المباريات والتنظيم</h2>
+                    <p class="desc">عرض وتوزيع مواعيد وملاعب المباريات المجدولة لجميع المستخدمين، وإدارتها حصرياً لمدير النظام</p>
+                </div>
+                <button class="btn btn-primary btn-lg" id="btn-schedule-create-match" onclick="scheduleComponent.openCreateModal()" style="display: none;">
+                    <i data-lucide="plus-circle"></i> إضافة مباراة مجدولة جديدة
+                </button>
+            </div>
+
+            <!-- Toolbar & Filters -->
+            <div class="glass-card mb-4">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="schedule-search-input"><i data-lucide="search"></i> بحث سريع</label>
+                        <input type="text" id="schedule-search-input" class="form-control" placeholder="ابحث باسم الفريق أو الملعب...">
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-filter-category"><i data-lucide="layers"></i> الفئة العمرية</label>
+                        <select id="schedule-filter-category" class="form-control">
+                            <option value="all">جميع الفئات</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-filter-competition"><i data-lucide="trophy"></i> المنافسة</label>
+                        <select id="schedule-filter-competition" class="form-control">
+                            <option value="all">جميع المنافسات</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-filter-week"><i data-lucide="calendar"></i> الأسبوع</label>
+                        <select id="schedule-filter-week" class="form-control">
+                            <option value="all">جميع الأسابيع</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-filter-field"><i data-lucide="map-pin"></i> الملعب</label>
+                        <select id="schedule-filter-field" class="form-control">
+                            <option value="all">جميع الملاعب</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-filter-status"><i data-lucide="info"></i> حالة المباراة</label>
+                        <select id="schedule-filter-status" class="form-control">
+                            <option value="all">جميع الحالات</option>
+                            <option value="scheduled">مجدولة</option>
+                            <option value="live">قيد اللعب</option>
+                            <option value="completed">مكتملة</option>
+                            <option value="canceled">ملغاة</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3 text-left">
+                    <button type="button" id="schedule-reset-filters" class="btn btn-sm btn-ghost">
+                        <i data-lucide="rotate-ccw"></i> إعادة ضبط الفلاتر
+                    </button>
+                </div>
+            </div>
+
+            <!-- Schedule List Container -->
+            <div class="glass-card">
+                <div class="admin-action-bar mb-3">
+                    <div class="drag-info-notice" style="display: none;">
+                        <i data-lucide="grip-vertical"></i>
+                        <span>يمكنك سحب وإسقاط السطور لإعادة ترتيب مواعيد وملاعب المباريات بسهولة</span>
+                    </div>
+                    <span class="badge badge-accent">إجمالي المباريات المجدولة: <strong id="schedule-total-count">0</strong></span>
+                </div>
+
+                <!-- Desktop Table View -->
+                <div class="table-responsive desktop-schedule-table">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"></th>
+                                <th>المنافسة والفئة</th>
+                                <th>الأسبوع</th>
+                                <th>طرفي المباراة</th>
+                                <th>الملعب</th>
+                                <th>التاريخ والوقت</th>
+                                <th>الحالة</th>
+                                <th class="text-center">النتيجة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedule-table-body">
+                            <!-- Injected dynamically by schedule.js -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile Cards View -->
+                <div id="schedule-cards-list" class="mobile-schedule-cards mt-3">
+                    <!-- Injected dynamically by schedule.js -->
+                </div>
+            </div>
         </section>
     </main>
 
@@ -763,6 +865,104 @@
         </div>
     </div>
 
+    <!-- Schedule Match Create/Edit Modal -->
+    <div id="schedule-match-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-box glass-card" style="max-width: 620px;">
+            <div class="modal-header">
+                <h3 id="schedule-modal-title"><i data-lucide="calendar"></i> إضافة مباراة مجدولة جديدة</h3>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <form id="schedule-match-form">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="m-sch-category"><i data-lucide="layers"></i> الفئة العمرية *</label>
+                            <select id="m-sch-category" class="form-control" required>
+                                <option value="">-- اختر الفئة --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="m-sch-competition"><i data-lucide="trophy"></i> المنافسة *</label>
+                            <select id="m-sch-competition" class="form-control" required>
+                                <option value="">-- اختر المنافسة --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row mt-3">
+                        <div class="form-group">
+                            <label for="m-sch-week"><i data-lucide="calendar"></i> الأسبوع *</label>
+                            <select id="m-sch-week" class="form-control" required>
+                                <option value="">-- اختر الأسبوع --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="m-sch-field"><i data-lucide="map-pin"></i> اسم الملعب *</label>
+                            <input type="text" id="m-sch-field" class="form-control" placeholder="مثال: الملعب الرئيسي، ملعب 1" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row mt-3">
+                        <div class="form-group">
+                            <label for="m-sch-team1"><i data-lucide="flag"></i> الفريق الأول (أ) *</label>
+                            <select id="m-sch-team1" class="form-control" required>
+                                <option value="">-- اختر الفريق الأول --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="m-sch-team2"><i data-lucide="flag"></i> الفريق الثاني (ب) *</label>
+                            <select id="m-sch-team2" class="form-control" required>
+                                <option value="">-- اختر الفريق الثاني --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row mt-3">
+                        <div class="form-group">
+                            <label for="m-sch-date"><i data-lucide="calendar"></i> تاريخ المباراة *</label>
+                            <input type="date" id="m-sch-date" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="m-sch-time"><i data-lucide="clock"></i> وقت المباراة *</label>
+                            <input type="time" id="m-sch-time" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="m-sch-status"><i data-lucide="info"></i> حالة المباراة</label>
+                            <select id="m-sch-status" class="form-control">
+                                <option value="scheduled">مجدولة</option>
+                                <option value="live">قيد اللعب</option>
+                                <option value="completed">مكتملة</option>
+                                <option value="canceled">ملغاة</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer mt-4">
+                    <button type="button" class="btn btn-secondary modal-close-btn">إلغاء</button>
+                    <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> حفظ وتأكيد المباراة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Schedule Delete Confirmation Modal -->
+    <div id="schedule-delete-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-box glass-card" style="max-width: 420px;">
+            <div class="modal-header">
+                <h3><i data-lucide="alert-triangle" style="color: var(--bare-magenta);"></i> تأكيد حذف المباراة المجدولة</h3>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p>هل أنت تأكد من رغبتك في حذف هذه المباراة المجدولة نهائياً من النظام والداتابيز؟</p>
+                <small class="text-muted">لا يمكن التراجع عن هذا الإجراء بعد الإلغاء.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary modal-close-btn">إلغاء</button>
+                <button type="button" class="btn btn-danger" onclick="scheduleComponent.executeDeleteMatch()"><i data-lucide="trash-2"></i> تأكيد الحذف النهائياً</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/db.js?v=3.2"></script>
     <script src="js/auth.js?v=3.2"></script>
@@ -772,6 +972,7 @@
     <script src="js/components/leaderboard.js?v=3.2"></script>
     <script src="js/components/analytics.js?v=3.2"></script>
     <script src="js/components/admin.js?v=3.2"></script>
+    <script src="js/components/schedule.js?v=3.2"></script>
     <script src="js/app.js?v=3.2"></script>
 
     <script>

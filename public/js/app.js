@@ -197,6 +197,8 @@ class App {
             adminComponent.renderCurrentTab();
         } else if (viewId === 'scoring') {
             scoringComponent.renderRecentFeed();
+        } else if (viewId === 'schedule') {
+            if (window.scheduleComponent) window.scheduleComponent.render();
         }
     }
 

@@ -117,6 +117,7 @@ class AuthService {
         // Trigger Component Refresh if active
         if (window.scoringComponent) window.scoringComponent.renderRecentFeed();
         if (window.adminComponent) window.adminComponent.renderCurrentTab();
+        if (window.scheduleComponent) window.scheduleComponent.render();
     }
 }
 

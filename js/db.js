@@ -341,6 +341,7 @@ class DatabaseEngine {
         }
         if (window.analyticsComponent) window.analyticsComponent.renderCharts();
         if (window.adminComponent) window.adminComponent.renderCurrentTab();
+        if (window.scheduleComponent) window.scheduleComponent.render();
     }
 
     getAll(key) {
