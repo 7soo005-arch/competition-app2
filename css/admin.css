@@ -10,9 +10,9 @@
 .admin-tab-btn {
     padding: 8px 16px;
     background: #FFFFFF;
-    border: 1px solid var(--border-color);
+    border: 1.5px solid #CBD5E1;
     border-radius: var(--radius-sm);
-    color: var(--text-secondary);
+    color: #334155;
     font-size: 0.85rem;
     font-weight: 700;
     cursor: pointer;
@@ -24,7 +24,7 @@
 
 .admin-tab-btn:hover {
     color: var(--bare-turquoise);
-    background: var(--bare-turquoise-light);
+    background: #F1F5F9;
 }
 
 .admin-tab-btn.active {
