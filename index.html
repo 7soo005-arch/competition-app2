@@ -722,7 +722,7 @@
                     <h2><i data-lucide="calendar"></i> جدول المباريات والتنظيم</h2>
                     <p class="desc">عرض وتوزيع مواعيد وملاعب المباريات المجدولة لجميع المستخدمين، وإدارتها حصرياً لمدير النظام</p>
                 </div>
-                <button class="btn btn-primary btn-lg" id="btn-schedule-create-match" onclick="scheduleComponent.openCreateModal()" style="display: none;">
+                <button class="btn btn-primary btn-lg admin-only" id="btn-schedule-create-match" onclick="window.scheduleComponent ? window.scheduleComponent.openCreateModal() : null">
                     <i data-lucide="plus-circle"></i> إضافة مباراة مجدولة جديدة
                 </button>
             </div>
@@ -779,7 +779,7 @@
             <!-- Schedule List Container -->
             <div class="glass-card">
                 <div class="admin-action-bar mb-3">
-                    <div class="drag-info-notice" style="display: none;">
+                    <div class="drag-info-notice admin-only">
                         <i data-lucide="grip-vertical"></i>
                         <span>يمكنك سحب وإسقاط السطور لإعادة ترتيب مواعيد وملاعب المباريات بسهولة</span>
                     </div>

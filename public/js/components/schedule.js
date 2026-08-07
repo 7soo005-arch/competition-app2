@@ -62,6 +62,9 @@ class ScheduleComponent {
                 btn.addEventListener('click', () => { deleteModal.style.display = 'none'; });
             });
         }
+
+        // Render initially
+        setTimeout(() => this.render(), 100);
     }
 
     populateDropdowns() {
@@ -556,3 +559,4 @@ class ScheduleComponent {
 
 // Global Schedule Component Instance
 const scheduleComponent = new ScheduleComponent();
+window.scheduleComponent = scheduleComponent;
