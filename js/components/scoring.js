@@ -173,19 +173,21 @@ class ScoringComponent {
     }
 
     autoDetectWinner() {
-        const g1 = parseInt(this.team1GoalsInput.value) || 0;
-        const g2 = parseInt(this.team2GoalsInput.value) || 0;
+        if (!this.team1GoalsInput || !this.team2GoalsInput) return;
+        const g1 = parseInt(this.team1GoalsInput?.value) || 0;
+        const g2 = parseInt(this.team2GoalsInput?.value) || 0;
 
         const radios = this.form.querySelectorAll('input[name="match-winner"]');
+        if (!radios || radios.length < 3) return;
         if (g1 > g2) {
             radios[0].checked = true; // team1
-            this.isDrawCheckbox.checked = false;
+            if (this.isDrawCheckbox) this.isDrawCheckbox.checked = false;
         } else if (g2 > g1) {
             radios[2].checked = true; // team2
-            this.isDrawCheckbox.checked = false;
+            if (this.isDrawCheckbox) this.isDrawCheckbox.checked = false;
         } else {
             radios[1].checked = true; // draw
-            this.isDrawCheckbox.checked = true;
+            if (this.isDrawCheckbox) this.isDrawCheckbox.checked = true;
         }
     }
 
@@ -204,8 +206,8 @@ class ScoringComponent {
         const weekId = this.weekSelect.value;
         const team1Id = this.team1Select.value;
         const team2Id = this.team2Select.value;
-        const team1Goals = parseInt(this.team1GoalsInput.value) || 0;
-        const team2Goals = parseInt(this.team2GoalsInput.value) || 0;
+        const team1Goals = parseInt(this.team1GoalsInput?.value) || 0;
+        const team2Goals = parseInt(this.team2GoalsInput?.value) || 0;
 
         if (team1Id === team2Id) {
             app.showToast('لا يمكن اختيار نفس الفريق لطرفي المباراة!', 'error');
