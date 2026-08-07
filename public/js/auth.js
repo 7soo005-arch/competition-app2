@@ -73,11 +73,24 @@ class AuthService {
         return this.currentUser && this.currentUser.role === 'supervisor';
     }
 
-    // Role-based Security Guard
+    // Role-based Security Guard for Admin
     requireAdminPermission() {
         if (!this.isAdmin()) {
             if (window.app) window.app.showToast(ADMIN_RESTRICTED_MESSAGE, 'error');
             return false;
+        }
+        return true;
+    }
+
+    // Role-based Write Permission Check
+    checkWritePermission(key, action) {
+        if (this.isLoggedIn()) {
+            if (this.isSupervisor()) {
+                if (action !== 'insert' || (key !== DB_KEYS.MATCH_RECORDS && key !== DB_KEYS.SCORE_ENTRIES && key !== DB_KEYS.AUDIT_LOGS)) {
+                    if (window.app) window.app.showToast('هذا الإجراء متاح فقط لمدير النظام.', 'error');
+                    return false;
+                }
+            }
         }
         return true;
     }
