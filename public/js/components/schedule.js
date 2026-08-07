@@ -48,6 +48,20 @@ class ScheduleComponent {
                 this.handleFormSubmit();
             });
         }
+
+        // Close modal buttons
+        const matchModal = document.getElementById('schedule-match-modal');
+        const deleteModal = document.getElementById('schedule-delete-modal');
+        if (matchModal) {
+            matchModal.querySelectorAll('.modal-close-btn').forEach(btn => {
+                btn.addEventListener('click', () => { matchModal.style.display = 'none'; });
+            });
+        }
+        if (deleteModal) {
+            deleteModal.querySelectorAll('.modal-close-btn').forEach(btn => {
+                btn.addEventListener('click', () => { deleteModal.style.display = 'none'; });
+            });
+        }
     }
 
     populateDropdowns() {
@@ -296,8 +310,6 @@ class ScheduleComponent {
                     ${cardActions}
                 </div>
             `;
-                </div>
-            `;
         });
 
         tbody.innerHTML = tableHtml;
@@ -326,10 +338,10 @@ class ScheduleComponent {
         this.editingMatchId = null;
         const modal = document.getElementById('schedule-match-modal');
         const form = document.getElementById('schedule-match-form');
-        const title = document.getElementById('m-sch-title');
+        const title = document.getElementById('schedule-modal-title') || document.getElementById('m-sch-title');
 
         if (form) form.reset();
-        if (title) title.textContent = 'إضافة مباراة مجدولة جديدة';
+        if (title) title.innerHTML = '<i data-lucide="calendar"></i> إضافة مباراة مجدولة جديدة';
 
         // Set default date & time
         const dateInput = document.getElementById('m-sch-date');
@@ -342,6 +354,7 @@ class ScheduleComponent {
 
         this.populateDropdowns();
         if (modal) modal.style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
     }
 
     editScheduleMatch(id) {
@@ -352,9 +365,9 @@ class ScheduleComponent {
 
         this.editingMatchId = id;
         const modal = document.getElementById('schedule-match-modal');
-        const title = document.getElementById('m-sch-title');
+        const title = document.getElementById('schedule-modal-title') || document.getElementById('m-sch-title');
 
-        if (title) title.textContent = 'تعديل بيانات المباراة المجدولة';
+        if (title) title.innerHTML = '<i data-lucide="edit-2"></i> تعديل بيانات المباراة المجدولة';
 
         document.getElementById('m-sch-category').value = match.category_id || '';
         this.populateTeamDropdowns(match.category_id);
