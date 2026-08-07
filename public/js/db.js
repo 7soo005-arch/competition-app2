@@ -367,7 +367,7 @@ class DatabaseEngine {
         return true;
     }
 
-    // Guaranteed Cloud INSERT
+    // Guaranteed Resilient INSERT (Saves locally immediately & syncs to Cloud)
     async insert(key, item) {
         if (!this.checkWritePermission(key, 'insert')) {
             return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
@@ -378,23 +378,7 @@ class DatabaseEngine {
         }
         item.created_at = item.created_at || new Date().toISOString();
 
-        if (this.cloudClient) {
-            const tableName = TABLE_MAP[key];
-            try {
-                const { data, error } = await this.cloudClient.from(tableName).insert([item]).select();
-                if (error) {
-                    console.error(`❌ Supabase Cloud insert error on ${tableName}:`, error);
-                    return { success: false, error: error.message || 'فشل الإدخال في Supabase' };
-                }
-                if (data && data[0]) {
-                    item = data[0];
-                }
-            } catch (e) {
-                console.error(`❌ Supabase Cloud insert exception on ${tableName}:`, e);
-                return { success: false, error: e.message || 'خطأ أثناء الاتصال بقاعدة بيانات Supabase' };
-            }
-        }
-
+        // 1. Guaranteed Local Persistence (Update Memory Cache & LocalStorage)
         const currentItems = this.getAll(key);
         const existingIdx = currentItems.findIndex(i => i.id === item.id);
         if (existingIdx !== -1) {
@@ -405,18 +389,64 @@ class DatabaseEngine {
         this.cache[key] = currentItems;
         this.saveCollection(key, currentItems);
 
+        // 2. Instant Local UI & Ranking Update
         this.refreshAllComponents();
-        return { success: true, data: item };
+
+        // 3. Asynchronous Supabase Cloud Synchronization
+        let cloudSuccess = false;
+        let cloudError = null;
+
+        if (this.cloudClient) {
+            const tableName = TABLE_MAP[key];
+            try {
+                const { data, error } = await this.cloudClient.from(tableName).insert([item]).select();
+                if (error) {
+                    console.error(`❌ Supabase Cloud insert error on ${tableName}:`, error);
+                    cloudError = error.message;
+                } else {
+                    cloudSuccess = true;
+                    if (data && data[0]) {
+                        // Merge Cloud response
+                        const updatedIdx = currentItems.findIndex(i => i.id === item.id);
+                        if (updatedIdx !== -1) {
+                            currentItems[updatedIdx] = { ...currentItems[updatedIdx], ...data[0] };
+                            this.cache[key] = currentItems;
+                            this.saveCollection(key, currentItems);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error(`❌ Supabase Cloud insert exception on ${tableName}:`, e);
+                cloudError = e.message;
+            }
+        }
+
+        return { success: true, data: item, cloudSuccess, cloudError };
     }
 
-    // Guaranteed Cloud UPDATE
+    // Guaranteed Resilient UPDATE (Saves locally immediately & syncs to Cloud)
     async update(key, id, updatedFields) {
         if (!this.checkWritePermission(key, 'update')) {
             return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
         }
 
+        // 1. Guaranteed Local Persistence (Update Memory Cache & LocalStorage)
         const items = this.getAll(key);
         const index = items.findIndex(item => item.id === id);
+        let updatedItem = null;
+        if (index !== -1) {
+            updatedItem = { ...items[index], ...updatedFields, updated_at: new Date().toISOString() };
+            items[index] = updatedItem;
+            this.cache[key] = items;
+            this.saveCollection(key, items);
+        }
+
+        // 2. Instant Local UI & Ranking Update
+        this.refreshAllComponents();
+
+        // 3. Asynchronous Supabase Cloud Synchronization
+        let cloudSuccess = false;
+        let cloudError = null;
 
         if (this.cloudClient) {
             const tableName = TABLE_MAP[key];
@@ -424,30 +454,37 @@ class DatabaseEngine {
                 const { error } = await this.cloudClient.from(tableName).update(updatedFields).eq('id', id);
                 if (error) {
                     console.error(`❌ Supabase Cloud update error on ${tableName}:`, error);
-                    return { success: false, error: error.message || 'فشل التعديل في Supabase' };
+                    cloudError = error.message;
+                } else {
+                    cloudSuccess = true;
                 }
             } catch (e) {
                 console.error(`❌ Supabase Cloud update exception on ${tableName}:`, e);
-                return { success: false, error: e.message || 'خطأ أثناء الاتصال بقاعدة بيانات Supabase' };
+                cloudError = e.message;
             }
         }
 
-        if (index !== -1) {
-            const updatedItem = { ...items[index], ...updatedFields, updated_at: new Date().toISOString() };
-            items[index] = updatedItem;
-            this.cache[key] = items;
-            this.saveCollection(key, items);
-        }
-
-        this.refreshAllComponents();
-        return { success: true };
+        return { success: true, data: updatedItem, cloudSuccess, cloudError };
     }
 
-    // Guaranteed Cloud DELETE
+    // Guaranteed Resilient DELETE (Deletes locally immediately & syncs to Cloud)
     async delete(key, id) {
         if (!this.checkWritePermission(key, 'delete')) {
             return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
         }
+
+        // 1. Guaranteed Local Persistence (Update Memory Cache & LocalStorage)
+        if (this.cache[key]) {
+            this.cache[key] = this.cache[key].filter(item => item.id !== id);
+            this.saveCollection(key, this.cache[key]);
+        }
+
+        // 2. Instant Local UI & Ranking Update
+        this.refreshAllComponents();
+
+        // 3. Asynchronous Supabase Cloud Synchronization
+        let cloudSuccess = false;
+        let cloudError = null;
 
         if (this.cloudClient) {
             const tableName = TABLE_MAP[key];
@@ -455,20 +492,17 @@ class DatabaseEngine {
                 const { error } = await this.cloudClient.from(tableName).delete().eq('id', id);
                 if (error) {
                     console.error(`❌ Supabase Cloud delete error on ${tableName}:`, error);
-                    return { success: false, error: error.message || 'فشل الحذف من Supabase' };
+                    cloudError = error.message;
+                } else {
+                    cloudSuccess = true;
                 }
             } catch (e) {
                 console.error(`❌ Supabase Cloud delete exception on ${tableName}:`, e);
-                return { success: false, error: e.message || 'خطأ أثناء الاتصال بقاعدة بيانات Supabase' };
+                cloudError = e.message;
             }
         }
 
-        const items = this.getAll(key).filter(item => item.id !== id);
-        this.cache[key] = items;
-        this.saveCollection(key, items);
-
-        this.refreshAllComponents();
-        return { success: true };
+        return { success: true, cloudSuccess, cloudError };
     }
 
     initDefaultSeed() {

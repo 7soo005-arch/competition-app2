@@ -201,13 +201,23 @@ class ScoringComponent {
             return;
         }
 
-        const categoryId = this.categorySelect.value;
-        const competitionId = this.competitionSelect.value;
-        const weekId = this.weekSelect.value;
-        const team1Id = this.team1Select.value;
-        const team2Id = this.team2Select.value;
+        const categoryId = this.categorySelect?.value || '';
+        const competitionId = this.competitionSelect?.value || '';
+        const weekId = this.weekSelect?.value || '';
+        const team1Id = this.team1Select?.value || '';
+        const team2Id = this.team2Select?.value || '';
         const team1Goals = parseInt(this.team1GoalsInput?.value) || 0;
         const team2Goals = parseInt(this.team2GoalsInput?.value) || 0;
+
+        if (!categoryId || !competitionId || !weekId) {
+            app.showToast('يرجى اختيار الفئة والمنافسة والأسبوع أولاً!', 'error');
+            return;
+        }
+
+        if (!team1Id || !team2Id) {
+            app.showToast('يرجى اختيار طرفي المباراة (الفريق الأول والفريق الثاني)!', 'error');
+            return;
+        }
 
         if (team1Id === team2Id) {
             app.showToast('لا يمكن اختيار نفس الفريق لطرفي المباراة!', 'error');
