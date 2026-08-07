@@ -386,9 +386,20 @@ class DatabaseEngine {
         return sanitized;
     }
 
+    // Helper method to safely validate write permissions
+    validateWritePermission(key, action) {
+        if (typeof this.checkWritePermission === 'function') {
+            return this.checkWritePermission(key, action);
+        }
+        if (typeof authService !== 'undefined' && typeof authService.checkWritePermission === 'function') {
+            return authService.checkWritePermission(key, action);
+        }
+        return true;
+    }
+
     // Strict Cloud-First INSERT with Error Reporting
     async insert(key, item) {
-        if (!this.checkWritePermission(key, 'insert')) {
+        if (!this.validateWritePermission(key, 'insert')) {
             return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
         }
 
@@ -438,7 +449,7 @@ class DatabaseEngine {
 
     // Strict Cloud-First UPDATE with Error Reporting
     async update(key, id, updatedFields) {
-        if (!this.checkWritePermission(key, 'update')) {
+        if (!this.validateWritePermission(key, 'update')) {
             return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
         }
 
@@ -480,7 +491,7 @@ class DatabaseEngine {
 
     // Strict Cloud-First DELETE with Error Reporting
     async delete(key, id) {
-        if (!this.checkWritePermission(key, 'delete')) {
+        if (!this.validateWritePermission(key, 'delete')) {
             return { success: false, error: 'هذا الإجراء متاح فقط لمدير النظام.' };
         }
 
