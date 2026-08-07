@@ -398,8 +398,8 @@ class ScoringComponent {
 
         } catch (error) {
             console.error('❌ Score submission failed:', error);
-            // 3. Show Error State
-            app.showToast('فشل الحفظ. يرجى المحاولة مرة أخرى.', 'error');
+            // 3. Show Error State with exact error details
+            app.showToast(error.message || 'فشل الحفظ في قاعدة البيانات.', 'error');
         } finally {
             this.isSubmitting = false;
             if (this.btnSaveScore) {
