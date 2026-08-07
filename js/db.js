@@ -116,26 +116,21 @@ class DatabaseEngine {
         this.initDatabase();
     }
 
-    // Setup Resilient Hooks: 30s background sync, Visibility tab change, Online reconnect
+    // Setup Resilient Hooks: Visibility tab change, Window focus, and Online reconnect
     setupAutoSyncHooks() {
-        // 30-Second Background Synchronization Check (Fallback Sync)
         if (this.syncInterval) clearInterval(this.syncInterval);
-        this.syncInterval = setInterval(() => {
-            console.log('⏰ 30s Fallback Sync Check triggered...');
-            this.pullAllTablesFromCloud();
-        }, 30000);
 
         // Tab Active / Visibility Change Hook
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
-                console.log('👁️ Tab became visible -> Syncing latest Supabase data...');
+                console.log('👁️ Tab became visible -> Checking latest Realtime state...');
                 this.pullAllTablesFromCloud();
             }
         });
 
         // Window Focus Hook
         window.addEventListener('focus', () => {
-            console.log('🔍 Window focused -> Refreshing data from Supabase...');
+            console.log('🔍 Window focused -> Syncing Realtime state...');
             this.pullAllTablesFromCloud();
         });
 
@@ -152,19 +147,20 @@ class DatabaseEngine {
         });
     }
 
-    // Subscribe to Realtime Updates (INSERT, UPDATE, DELETE)
+    // Subscribe to Realtime Updates (INSERT, UPDATE, DELETE) - Pure Supabase Realtime Engine
     subscribeToRealtimeChanges() {
         if (!this.cloudClient) return;
 
         if (this.realtimeChannel) {
             try { this.cloudClient.removeChannel(this.realtimeChannel); } catch(e){}
+            this.realtimeChannel = null;
         }
 
         try {
             this.realtimeChannel = this.cloudClient
                 .channel('public-db-changes-' + Date.now())
                 .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-                    console.log('🔄 Realtime Event Received:', payload.eventType, payload.table, payload);
+                    console.log('⚡ Realtime Event Received:', payload.eventType, payload.table, payload);
                     
                     const key = REVERSE_TABLE_MAP[payload.table];
                     if (key) {
@@ -189,16 +185,19 @@ class DatabaseEngine {
                                 this.saveCollection(key, this.cache[key]);
                             }
                         }
+
+                        // Instant UI Update across all views without page refresh
+                        this.refreshAllComponents();
                     }
 
-                    // Perform complete pull & refresh to guarantee absolute state consistency
-                    await this.pullAllTablesFromCloud();
+                    // Background table pull to guarantee 100% data consistency
+                    this.pullAllTablesFromCloud();
                 })
                 .subscribe((status) => {
                     console.log('⚡ Supabase Realtime Channel Status:', status);
                     if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                         console.warn('⚠️ Realtime Channel disconnected. Scheduling auto-reconnect...');
-                        setTimeout(() => this.initCloudSync(), 5000);
+                        setTimeout(() => this.subscribeToRealtimeChanges(), 3000);
                     }
                 });
         } catch (e) {
