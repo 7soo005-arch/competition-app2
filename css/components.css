@@ -207,50 +207,60 @@
     transition: var(--transition-fast);
 }
 
-/* Team 1 ID Card - Distinct Teal Theme (#00BDB0) */
+/* Team 1 ID Card - Distinct High-Contrast Teal Theme */
 .team-1-box {
-    background: rgba(0, 189, 176, 0.06);
-    border: 1.5px solid rgba(0, 189, 176, 0.35);
-    border-top: 4px solid var(--bare-turquoise);
+    background: rgba(0, 189, 176, 0.08);
+    border: 1.5px solid rgba(0, 189, 176, 0.4);
+    border-top: 4px solid #008B82;
     box-shadow: 0 4px 15px rgba(0, 189, 176, 0.08);
 }
 
 .team-1-box label {
-    color: var(--bare-turquoise);
+    color: #007A72;
     font-weight: 800;
     font-size: 0.95rem;
 }
 
 .team-1-box label i {
-    color: var(--bare-turquoise);
+    color: #007A72;
+}
+
+.team-1-box .score-input-group label {
+    color: #007A72;
+    font-weight: 800;
 }
 
 .team-1-box .form-control:focus {
-    border-color: var(--bare-turquoise);
+    border-color: #008B82;
     box-shadow: 0 0 0 3px rgba(0, 189, 176, 0.25);
 }
 
-/* Team 2 ID Card - Distinct Warm Gold/Yellow Theme (#FFB800) */
+/* Team 2 ID Card - Distinct High-Contrast Amber/Gold Theme */
 .team-2-box {
-    background: rgba(255, 184, 0, 0.07);
-    border: 1.5px solid rgba(255, 184, 0, 0.4);
-    border-top: 4px solid var(--bare-yellow);
-    box-shadow: 0 4px 15px rgba(255, 184, 0, 0.08);
+    background: rgba(245, 158, 11, 0.08);
+    border: 1.5px solid rgba(245, 158, 11, 0.45);
+    border-top: 4px solid #D97706;
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.08);
 }
 
 .team-2-box label {
-    color: #D97706;
+    color: #B45309;
     font-weight: 800;
     font-size: 0.95rem;
 }
 
 .team-2-box label i {
-    color: var(--bare-yellow);
+    color: #B45309;
+}
+
+.team-2-box .score-input-group label {
+    color: #B45309;
+    font-weight: 800;
 }
 
 .team-2-box .form-control:focus {
-    border-color: var(--bare-yellow);
-    box-shadow: 0 0 0 3px rgba(255, 184, 0, 0.25);
+    border-color: #D97706;
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25);
 }
 
 /* Versus Center Badge (Magenta #E60067) */
