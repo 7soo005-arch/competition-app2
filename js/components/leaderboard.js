@@ -173,16 +173,16 @@ class LeaderboardComponent {
             return `
                 <tr>
                     <td data-label="الترتيب"><span class="rank-badge ${rankBadgeClass}">${index + 1}</span></td>
-                    <td data-label="اسم الفريق"><strong>${item.team_name}</strong></td>
+                    <td data-label="اسم الفريق"><strong style="font-size: 1.05rem; color: #0F172A; font-weight: 800;">${item.team_name}</strong></td>
                     <td data-label="الفئة"><span class="badge badge-accent">${item.category_name}</span></td>
-                    <td data-label="لعب">${item.played}</td>
-                    <td data-label="فوز" class="text-success font-weight-bold">${item.won}</td>
-                    <td data-label="تعادل">${item.drawn}</td>
-                    <td data-label="خسارة" class="text-danger">${item.lost}</td>
-                    <td data-label="له">${item.goals_for}</td>
-                    <td data-label="عليه">${item.goals_against}</td>
-                    <td data-label="خصم عقوبات" class="text-danger">${item.penalties > 0 ? `-${item.penalties}` : '0'}</td>
-                    <td data-label="النقاط الكلية"><strong style="font-size: 1.1rem; color: var(--primary);">${item.points}</strong></td>
+                    <td data-label="لعب"><strong style="color: #0F172A;">${item.played}</strong></td>
+                    <td data-label="فوز"><strong class="text-success" style="font-weight: 800;">${item.won}</strong></td>
+                    <td data-label="تعادل"><strong style="color: #0F172A;">${item.drawn}</strong></td>
+                    <td data-label="خسارة"><strong class="text-danger" style="font-weight: 800;">${item.lost}</strong></td>
+                    <td data-label="له"><strong style="color: #0F172A;">${item.goals_for}</strong></td>
+                    <td data-label="عليه"><strong style="color: #0F172A;">${item.goals_against}</strong></td>
+                    <td data-label="خصم عقوبات">${item.penalties > 0 ? `<strong class="text-danger">-${item.penalties}</strong>` : '<span style="color: #64748B;">0</span>'}</td>
+                    <td data-label="النقاط الكلية"><strong style="font-size: 1.2rem; color: #008B82; font-weight: 900;">${item.points}</strong></td>
                 </tr>
             `;
         }).join('');
