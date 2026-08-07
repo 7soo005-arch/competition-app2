@@ -46,6 +46,9 @@ class DatabaseEngine {
         this.syncInterval = null;
         this.isInitialized = false;
         
+        // Bind permission check method to instance
+        this.checkWritePermission = this.checkWritePermission.bind(this);
+
         // Initialize empty cache keys
         const keys = Object.keys(TABLE_MAP);
         for (const key of keys) {
