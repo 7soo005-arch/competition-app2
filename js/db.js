@@ -154,6 +154,7 @@ class DatabaseEngine {
     subscribeToRealtimeChanges() {
         if (!this.cloudClient) return;
 
+        // Clean up existing channel if needed
         if (this.realtimeChannel) {
             try { this.cloudClient.removeChannel(this.realtimeChannel); } catch(e){}
             this.realtimeChannel = null;
@@ -161,8 +162,8 @@ class DatabaseEngine {
 
         try {
             this.realtimeChannel = this.cloudClient
-                .channel('public-db-changes-' + Date.now())
-                .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
+                .channel('comp-realtime-channel')
+                .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
                     console.log('⚡ Realtime Event Received:', payload.eventType, payload.table, payload);
                     
                     const key = REVERSE_TABLE_MAP[payload.table];
@@ -192,15 +193,16 @@ class DatabaseEngine {
                         // Instant UI Update across all views without page refresh
                         this.refreshAllComponents();
                     }
-
-                    // Background table pull to guarantee 100% data consistency
-                    this.pullAllTablesFromCloud();
                 })
-                .subscribe((status) => {
-                    console.log('⚡ Supabase Realtime Channel Status:', status);
-                    if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                .subscribe((status, err) => {
+                    console.log('⚡ Supabase Realtime Channel Status:', status, err || '');
+                    if (status === 'SUBSCRIBED') {
+                        console.log('🟢 Supabase Realtime Active: Instant sync enabled across all devices!');
+                    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                         console.warn('⚠️ Realtime Channel disconnected. Scheduling auto-reconnect...');
-                        setTimeout(() => this.subscribeToRealtimeChanges(), 3000);
+                        setTimeout(() => {
+                            if (this.cloudClient) this.subscribeToRealtimeChanges();
+                        }, 3000);
                     }
                 });
         } catch (e) {
