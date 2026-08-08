@@ -527,8 +527,6 @@
     border-color: var(--primary);
     box-shadow: 0 4px 12px rgba(0, 189, 176, 0.25);
 }
-    border-color: var(--primary);
-}
 
 .tab-content {
     display: none;

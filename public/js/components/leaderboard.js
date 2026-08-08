@@ -31,15 +31,26 @@ class LeaderboardComponent {
         });
 
         // Tab Switching for Leaderboards
-        document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+        document.querySelectorAll('.sub-tabs .sub-tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
                 const targetTabId = btn.getAttribute('data-tab');
-                document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
+                // Toggle active button inside sub-tabs container
+                const container = btn.closest('.sub-tabs') || document;
+                container.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+
+                // Toggle tab content visibility
+                const section = btn.closest('section') || document;
+                section.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
                 const targetTab = document.getElementById(targetTabId);
-                if (targetTab) targetTab.classList.add('active');
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                }
+
+                this.renderAll();
             });
         });
     }
@@ -153,9 +164,9 @@ class LeaderboardComponent {
     renderTeamsTable() {
         if (!this.teamsTbody) return;
 
-        const catFilter = this.filterCategory.value;
-        const weekFilter = this.filterWeek.value;
-        const compFilter = this.filterCompetition.value;
+        const catFilter = this.filterCategory ? this.filterCategory.value : 'all';
+        const weekFilter = this.filterWeek ? this.filterWeek.value : 'all';
+        const compFilter = this.filterCompetition ? this.filterCompetition.value : 'all';
 
         const standings = this.calculateStandings(catFilter, weekFilter, compFilter);
 
@@ -191,13 +202,35 @@ class LeaderboardComponent {
     renderBestPlayersTable() {
         if (!this.bestPlayersTbody) return;
 
-        const scoreEntries = db.getAll(DB_KEYS.SCORE_ENTRIES).filter(e => e.entry_type === 'best_player');
-        const participants = db.getAll(DB_KEYS.PARTICIPANTS);
+        const catFilter = this.filterCategory ? this.filterCategory.value : 'all';
+        const weekFilter = this.filterWeek ? this.filterWeek.value : 'all';
+        const compFilter = this.filterCompetition ? this.filterCompetition.value : 'all';
+
+        let scoreEntries = db.getAll(DB_KEYS.SCORE_ENTRIES).filter(e => e.entry_type === 'best_player');
+        let matches = db.getAll(DB_KEYS.MATCH_RECORDS);
+        let participants = db.getAll(DB_KEYS.PARTICIPANTS);
         const teams = db.getAll(DB_KEYS.TEAMS);
         const categories = db.getAll(DB_KEYS.CATEGORIES);
 
+        // Filter by week/competition via match_id
+        if ((weekFilter && weekFilter !== 'all') || (compFilter && compFilter !== 'all')) {
+            let validMatches = matches;
+            if (weekFilter && weekFilter !== 'all') validMatches = validMatches.filter(m => m.week_id === weekFilter);
+            if (compFilter && compFilter !== 'all') validMatches = validMatches.filter(m => m.competition_id === compFilter);
+            const validMatchIds = new Set(validMatches.map(m => m.id));
+            scoreEntries = scoreEntries.filter(e => e.match_id && validMatchIds.has(e.match_id));
+        }
+
+        // Filter by category
+        if (catFilter && catFilter !== 'all') {
+            participants = participants.filter(p => p.category_id === catFilter);
+        }
+        const participantSet = new Set(participants.map(p => p.id));
+
         const playerMap = {};
         scoreEntries.forEach(entry => {
+            if (!participantSet.has(entry.participant_id)) return;
+
             if (!playerMap[entry.participant_id]) {
                 const p = participants.find(part => part.id === entry.participant_id);
                 if (p) {
@@ -218,7 +251,10 @@ class LeaderboardComponent {
             }
         });
 
-        const list = Object.values(playerMap).sort((a, b) => b.count - a.count);
+        const list = Object.values(playerMap).sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count;
+            return b.points - a.points;
+        });
 
         if (list.length === 0) {
             this.bestPlayersTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">لا يوجد لاعبون متميزون مسجلون بعد.</td></tr>';
@@ -235,19 +271,41 @@ class LeaderboardComponent {
                 <td data-label="النقاط">+${item.points} نقطة</td>
             </tr>
         `).join('');
-        lucide.createIcons();
+        if (window.lucide) window.lucide.createIcons();
     }
 
     renderIdealPlayersTable() {
         if (!this.idealPlayersTbody) return;
 
-        const scoreEntries = db.getAll(DB_KEYS.SCORE_ENTRIES).filter(e => e.entry_type === 'ideal_player');
-        const participants = db.getAll(DB_KEYS.PARTICIPANTS);
+        const catFilter = this.filterCategory ? this.filterCategory.value : 'all';
+        const weekFilter = this.filterWeek ? this.filterWeek.value : 'all';
+        const compFilter = this.filterCompetition ? this.filterCompetition.value : 'all';
+
+        let scoreEntries = db.getAll(DB_KEYS.SCORE_ENTRIES).filter(e => e.entry_type === 'ideal_player');
+        let matches = db.getAll(DB_KEYS.MATCH_RECORDS);
+        let participants = db.getAll(DB_KEYS.PARTICIPANTS);
         const teams = db.getAll(DB_KEYS.TEAMS);
         const categories = db.getAll(DB_KEYS.CATEGORIES);
 
+        // Filter by week/competition via match_id
+        if ((weekFilter && weekFilter !== 'all') || (compFilter && compFilter !== 'all')) {
+            let validMatches = matches;
+            if (weekFilter && weekFilter !== 'all') validMatches = validMatches.filter(m => m.week_id === weekFilter);
+            if (compFilter && compFilter !== 'all') validMatches = validMatches.filter(m => m.competition_id === compFilter);
+            const validMatchIds = new Set(validMatches.map(m => m.id));
+            scoreEntries = scoreEntries.filter(e => e.match_id && validMatchIds.has(e.match_id));
+        }
+
+        // Filter by category
+        if (catFilter && catFilter !== 'all') {
+            participants = participants.filter(p => p.category_id === catFilter);
+        }
+        const participantSet = new Set(participants.map(p => p.id));
+
         const playerMap = {};
         scoreEntries.forEach(entry => {
+            if (!participantSet.has(entry.participant_id)) return;
+
             if (!playerMap[entry.participant_id]) {
                 const p = participants.find(part => part.id === entry.participant_id);
                 if (p) {
@@ -282,7 +340,7 @@ class LeaderboardComponent {
                 <td data-label="التكريمات"><strong class="text-success">${item.count} مرات</strong></td>
             </tr>
         `).join('');
-        lucide.createIcons();
+        if (window.lucide) window.lucide.createIcons();
     }
 
     renderPenaltiesLogTable() {
